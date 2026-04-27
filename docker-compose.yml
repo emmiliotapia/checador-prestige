@@ -1,0 +1,36 @@
+services:
+  attendance-db:
+    image: postgres:15-alpine
+    container_name: smartops_attendance_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: attendance_secret
+      POSTGRES_DB: smartops_attendance
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_attendance_data:/var/lib/postgresql/data
+
+  attendance-backend:
+    build: ./backend
+    container_name: smartops_attendance_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:attendance_secret@attendance-db:5432/smartops_attendance
+    ports:
+      - "8100:8100"
+    depends_on:
+      - attendance-db
+
+  attendance-frontend:
+    build: ./frontend
+    container_name: smartops_attendance_frontend
+    restart: always
+    ports:
+      - "3100:80"
+    depends_on:
+      - attendance-backend
+
+volumes:
+  postgres_attendance_data:
