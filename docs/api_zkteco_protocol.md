@@ -28,3 +28,11 @@ Es **CRÍTICO** que la respuesta del servidor sea:
 
 > [!IMPORTANT]
 > Si el servidor responde en JSON o con un formato distinto a "OK" en texto plano, el dispositivo ZKTeco no limpiará su memoria interna y podría entrar en un bucle de reintentos infinitos, bloqueando el dispositivo.
+
+## Verificación de Recepción
+Para verificar que los datos están llegando correctamente sin depender de reportes históricos, se puede consultar el feed de actividad en tiempo real:
+- **Dashboard**: El tablero principal muestra los últimos registros recibidos mediante polling automático.
+- **API**: `GET /api/registros/recientes?tenant_id={UUID}`
+
+### Pruebas de Integración (Simulación)
+Se ha incluido un script en `scratch/test_zkteco_push.py` que permite simular el envío de una marcación desde un dispositivo físico. Esto es útil para validar la cadena completa (Webhook -> DB -> Dashboard) sin necesidad de hardware.

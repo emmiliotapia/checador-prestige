@@ -39,6 +39,19 @@ def seed_db():
             db.commit()
             print(f"Created employee: {employee.nombre_completo}")
 
+        # Create the user's specific employee
+        user_employee = db.query(models.Empleado).filter(models.Empleado.id_reloj == "1451").first()
+        if not user_employee:
+            user_employee = models.Empleado(
+                tenant_id=tenant_id,
+                area_id=area.id,
+                id_reloj="1451",
+                nombre_completo="Emilio (User)"
+            )
+            db.add(user_employee)
+            db.commit()
+            print(f"Created user employee: {user_employee.nombre_completo}")
+
     finally:
         db.close()
 

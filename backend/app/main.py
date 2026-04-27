@@ -30,8 +30,7 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/iclock/cdata")
-@app.post("/iclock/cdata")
+@app.api_route("/iclock/cdata", methods=["GET", "POST"])
 async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
     """
     ZKTeco ADMS Webhook.
@@ -128,6 +127,29 @@ def export_report(
             "timestamp": reg.timestamp_checada.isoformat(),
             "tipo": reg.tipo_registro,
             "dispositivo": reg.dispositivo_sn
+        })
+    
+    return result
+
+@app.get("/api/registros/recientes", response_model=List[schemas.RegistroDetailOut])
+def list_recent_registros(
+    tenant_id: uuid.UUID, 
+    limit: int = 10, 
+    db: Session = Depends(get_db)
+):
+    registros = db.query(models.Registro).filter(
+        models.Registro.tenant_id == tenant_id
+    ).order_by(models.Registro.timestamp_checada.desc()).limit(limit).all()
+    
+    result = []
+    for reg in registros:
+        result.append({
+            "id": reg.id,
+            "timestamp_checada": reg.timestamp_checada,
+            "tipo_registro": reg.tipo_registro,
+            "dispositivo_sn": reg.dispositivo_sn,
+            "nombre_empleado": reg.empleado.nombre_completo,
+            "id_reloj": reg.empleado.id_reloj
         })
     
     return result

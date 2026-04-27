@@ -35,5 +35,18 @@ sudo ufw allow 3100/tcp  # Interfaz Web
 Debido a limitaciones de firmware del SilkBio TC 100 (no soporta DNS), la conexión es por IP directa:
 `http://164.92.110.179/iclock/cdata` (Puerto 80).
 
+## Verificación y Pruebas
+Para asegurar que el despliegue es correcto, seguir estos pasos:
+
+### 1. Prueba de Webhook (Simulación de Reloj)
+Ejecutar el script de prueba desde una terminal con acceso a internet:
+```bash
+python scratch/test_zkteco_push.py
+```
+Si el resultado es `OK`, el backend está listo para recibir datos reales.
+
+### 2. Monitoreo en Vivo
+Acceder a `http://164.92.110.179:3100` y observar la tabla de "Actividad Reciente". La marca enviada en el paso anterior debería aparecer en menos de 10 segundos.
+
 ## Aislamiento de Datos
 La base de datos utiliza un volumen persistente llamado `checador_postgres_attendance_data` para garantizar que los registros no se pierdan al reiniciar o actualizar los contenedores.

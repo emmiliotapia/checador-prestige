@@ -36,3 +36,12 @@ class RegistroOut(BaseModel):
     empleado_id: uuid.UUID
     tenant_id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
+
+class RegistroDetailOut(BaseModel):
+    id: uuid.UUID
+    timestamp_checada: datetime
+    tipo_registro: str
+    dispositivo_sn: Optional[str]
+    nombre_empleado: str
+    id_reloj: str
+    model_config = ConfigDict(from_attributes=True)
