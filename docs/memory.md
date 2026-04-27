@@ -11,6 +11,7 @@ El MVP de **SmartOps Time Attendance** ha sido implementado y desplegado exitosa
 - **Base de Datos**: PostgreSQL 15 dedicado y aislado, con datos de semilla para el cliente "Casino Prestige" (incluyendo ID 1451).
 - **Firewall**: Puertos 8100 y 3100 abiertos en el servidor.
 - **Monitoreo en Vivo**: Dashboard actualizado con feed de actividad reciente y polling de 10 segundos.
+- **Pivot de Estrategia (PUENTE LOCAL)**: Implementación de arquitectura de bypass para dispositivos SilkBio TC 100 mediante script bridge local, ante limitaciones de red/firmware para ADMS directo.
 
 ### Errores Solucionados (Fix Log)
 - **Conexión SilkBio TC 100 (VALIDADO)**: Resuelto mediante IP directa al puerto 80. Se configuró NPM con forward a `172.17.0.1:8100`. Validado mediante prueba de retorno 405 desde el backend.

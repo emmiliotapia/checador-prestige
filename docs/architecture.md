@@ -4,13 +4,20 @@
 - **Backend**: FastAPI (Python 3.11), SQLAlchemy (ORM).
 - **Frontend**: React 19, Vite, Tailwind CSS 3.
 - **Base de Datos**: PostgreSQL 15.
-- **Proxy Inverso**: Nginx Proxy Manager (NPM).
+- **Puente Local**: Script Python con `pyzk` para dispositivos sin salida a internet.
 - **Contenerización**: Docker & Docker Compose.
 
-## Arquitectura Multi-tenant
-El sistema utiliza una arquitectura de aislamiento de datos a nivel de fila (*Row-Level Isolation* simulada por consultas). Cada tabla core contiene una columna `tenant_id` (UUID) que debe ser filtrada en todas las peticiones del API.
+## Flujos de Datos
 
-### Esquema de Base de Datos
+### Opción A: Direct Cloud Sync (ADMS)
+Ideal para dispositivos con salida directa a internet.
+`ZKTeco Device -> POST /iclock/cdata (VPS)`
+
+### Opción B: Local Bridge (Legacy Bypass) - ACTUAL
+Diseñado para el SilkBio TC 100 y redes restringidas.
+`ZKTeco Device (Local) -> Bridge Script (Local PC) -> POST /api/v1/bridge/sync (VPS)`
+
+## Esquema de Base de Datos
 
 #### 1. Tenants
 - `id` (UUID, PK): Identificador único del cliente SaaS.

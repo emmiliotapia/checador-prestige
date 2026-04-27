@@ -5,11 +5,13 @@ from datetime import datetime
 import uuid
 from typing import List, Optional
 
-from . import models, database, schemas
+from . import models, database, schemas, bridge
 
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="SmartOps Time Attendance API")
+
+app.include_router(bridge.router)
 
 app.add_middleware(
     CORSMiddleware,
