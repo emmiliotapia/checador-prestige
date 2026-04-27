@@ -11,10 +11,10 @@ El MVP de **SmartOps Time Attendance** ha sido implementado y desplegado exitosa
 - **Firewall**: Puertos 8100 y 3100 abiertos en el servidor.
 
 ### Errores Solucionados (Fix Log)
-- **Conexión SilkBio TC 100**: Resuelto mediante IP directa al puerto 80 (vía NPM Default Site). Se identificó que el firmware de este modelo **no soporta DNS** para ADMS.
+- **Conexión SilkBio TC 100 (VALIDADO)**: Resuelto mediante IP directa al puerto 80. Se configuró NPM con forward a `172.17.0.1:8100`. Validado mediante prueba de retorno 405 desde el backend.
+- **Limitación DNS**: Confirmado que el firmware del SilkBio no soporta resolución de nombres de dominio.
 - **CORS**: Habilitado en FastAPI para permitir comunicación multiplataforma.
-- **Docker Build**: Corregida la versión de Node a v20 y añadida la bandera `--legacy-peer-deps` para compatibilidad con React 19 y Tailwind 3.
-- **ZKTeco Response**: Asegurada la respuesta `PlainTextResponse("OK")` para compatibilidad estricta con el protocolo ADMS.
+- **Docker Build**: Corregida la versión de Node a v20 y añadida la bandera `--legacy-peer-deps`.
 
 ## Next Steps
 - [ ] Importar CSV masivo de empleados y áreas (proporcionado por el usuario).

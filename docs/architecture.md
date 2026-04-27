@@ -4,6 +4,7 @@
 - **Backend**: FastAPI (Python 3.11), SQLAlchemy (ORM).
 - **Frontend**: React 19, Vite, Tailwind CSS 3.
 - **Base de Datos**: PostgreSQL 15.
+- **Proxy Inverso**: Nginx Proxy Manager (NPM).
 - **Contenerización**: Docker & Docker Compose.
 
 ## Arquitectura Multi-tenant

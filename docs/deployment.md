@@ -9,11 +9,16 @@
 ## Orquestación (Docker Compose)
 El sistema se despliega como un stack de tres servicios interconectados:
 
-| Servicio | Puerto Externo | Puerto Interno | Propósito |
-| :--- | :--- | :--- | :--- |
-| **Attendance Frontend** | `3100` | `80` | Interfaz web React (Nginx) |
-| **Attendance Backend** | `164.92.110.179` (vía NPM Default Site) | `8100` | API FastAPI y Webhook ADMS |
+| **Attendance Backend** | `164.92.110.179` (NPM Host) | `172.17.0.1:8100` | Tráfico IP-to-IP validado |
+| **Attendance Frontend** | `3100` | `80` | Interfaz web React |
 | **Attendance DB** | `5436` | `5432` | PostgreSQL 15 dedicado |
+
+## Configuración de Ruteo (Nginx Proxy Manager)
+Para evitar bloqueos de firewall en la red del cliente (Casino), el tráfico se rutea así:
+1. **Origen**: Dispositivo SilkBio apunta a `http://164.92.110.179:80`.
+2. **NPM**: Captura la petición por IP directa.
+3. **Forward**: Redirige a `172.17.0.1` (Docker Host IP) en el puerto `8100`.
+4. **Resultado**: Tráfico limpio hacia FastAPI sin errores de Hairpin NAT.
 
 ## Scripts de Operación
 - **`deploy.ps1`**: Script local para subir cambios vía SCP y reconstruir los contenedores remotamente vía SSH.
