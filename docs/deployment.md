@@ -12,7 +12,7 @@ El sistema se despliega como un stack de tres servicios interconectados:
 | Servicio | Puerto Externo | Puerto Interno | Propósito |
 | :--- | :--- | :--- | :--- |
 | **Attendance Frontend** | `3100` | `80` | Interfaz web React (Nginx) |
-| **Attendance Backend** | `api-checador.smartopsia.com` (vía NPM) | `8100` | API FastAPI y Webhook ADMS |
+| **Attendance Backend** | `164.92.110.179` (vía NPM Default Site) | `8100` | API FastAPI y Webhook ADMS |
 | **Attendance DB** | `5436` | `5432` | PostgreSQL 15 dedicado |
 
 ## Scripts de Operación
@@ -27,8 +27,8 @@ sudo ufw allow 3100/tcp  # Interfaz Web
 ```
 
 ### Endpoint: `POST /iclock/cdata`
-Para saltar bloqueos de routers locales, se recomienda usar el subdominio:
-`http://api-checador.smartopsia.com/iclock/cdata` (Puerto 80).
+Debido a limitaciones de firmware del SilkBio TC 100 (no soporta DNS), la conexión es por IP directa:
+`http://164.92.110.179/iclock/cdata` (Puerto 80).
 
 ## Aislamiento de Datos
 La base de datos utiliza un volumen persistente llamado `checador_postgres_attendance_data` para garantizar que los registros no se pierdan al reiniciar o actualizar los contenedores.
