@@ -38,51 +38,70 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
     ZKTeco ADMS Webhook.
     Handles data push from devices.
     """
-    # Get SN from query params
+    if request.method == "GET":
+        # Handshake / Initialization response expected by ZKTeco
+        response_text = (
+            "Registry=OK\n"
+            "GET OPTION FROM: 1\n"
+            "ATTLOGStamp=0\n"
+            "OPERLOGStamp=0\n"
+            "ATTPHOTOStamp=0\n"
+            "ErrorDelay=60\n"
+            "Delay=30\n"
+            "TransTimes=00:00;14:00\n"
+            "TransInterval=1\n"
+        )
+        return PlainTextResponse(response_text)
+
+    # If POST, it's pushing data
     params = request.query_params
     sn = params.get("SN")
+    table = params.get("table", "")
     
-    # Get raw text body
     body = await request.body()
-    body_text = body.decode("utf-8")
+    body_text = body.decode("utf-8", errors="ignore")
     
-    # Parse ZKTeco payload (Text Plain)
-    # Typical format: 1234\t2023-10-01 08:00:00\t0\t0\t0\t0
-    lines = body_text.strip().split("\n")
+    # We only care about ATTLOG (Attendance Logs)
+    if table == "ATTLOG":
+        lines = body_text.strip().split("\n")
+        
+        for line in lines:
+            parts = line.strip().split("\t")
+            if len(parts) >= 2:
+                id_reloj = parts[0]
+                timestamp_str = parts[1]
+                tipo_registro = parts[2] if len(parts) > 2 else "0"
+                
+                try:
+                    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                    
+                    # Find employee
+                    empleado = db.query(models.Empleado).filter(models.Empleado.id_reloj == id_reloj).first()
+                    
+                    if empleado:
+                        # Avoid duplicates
+                        exists = db.query(models.Registro).filter(
+                            models.Registro.empleado_id == empleado.id,
+                            models.Registro.timestamp_checada == timestamp
+                        ).first()
+                        
+                        if not exists:
+                            nuevo_registro = models.Registro(
+                                tenant_id=empleado.tenant_id,
+                                empleado_id=empleado.id,
+                                timestamp_checada=timestamp,
+                                tipo_registro=tipo_registro,
+                                dispositivo_sn=sn
+                            )
+                            db.add(nuevo_registro)
+                except Exception as e:
+                    print(f"Error parsing line {line}: {e}")
+                    continue
+                    
+        db.commit()
     
-    for line in lines:
-        parts = line.strip().split("\t")
-        if len(parts) >= 2:
-            id_reloj = parts[0]
-            timestamp_str = parts[1]
-            tipo_registro = parts[2] if len(parts) > 2 else "0"
-            
-            try:
-                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-                
-                # Find employee by id_reloj
-                # Note: In a real multi-tenant scenario, we might need SN to identify the tenant
-                # For this MVP, we'll assume id_reloj is unique across the system or filter by SN if SN is linked to tenant
-                # Let's find the employee and their tenant
-                empleado = db.query(models.Empleado).filter(models.Empleado.id_reloj == id_reloj).first()
-                
-                if empleado:
-                    nuevo_registro = models.Registro(
-                        tenant_id=empleado.tenant_id,
-                        empleado_id=empleado.id,
-                        timestamp_checada=timestamp,
-                        tipo_registro=tipo_registro,
-                        dispositivo_sn=sn
-                    )
-                    db.add(nuevo_registro)
-            except Exception as e:
-                print(f"Error parsing line {line}: {e}")
-                continue
-                
-    db.commit()
-    
-    # ZKTeco expects "OK" in plain text to acknowledge receipt
-    return PlainTextResponse("OK")
+    # Always acknowledge receipt
+    return PlainTextResponse("OK\n")
 
 @app.get("/api/empleados", response_model=List[schemas.EmpleadoOut])
 def list_empleados(tenant_id: uuid.UUID, db: Session = Depends(get_db)):

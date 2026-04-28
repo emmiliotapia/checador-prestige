@@ -10,7 +10,7 @@ VPS_URL = 'http://164.92.110.179:8100/api/v1/bridge/sync'
 POLL_INTERVAL = 60 # Check every minute
 
 def sync_data():
-    zk = ZK(DEVICE_IP, port=DEVICE_PORT, timeout=5, password=0, force_udp=False, ommit_ping=False)
+    zk = ZK(DEVICE_IP, port=DEVICE_PORT, timeout=30, password=0, force_udp=True, ommit_ping=False)
     conn = None
     try:
         print(f"[{datetime.now()}] Connecting to device {DEVICE_IP}:{DEVICE_PORT}...")
@@ -56,10 +56,15 @@ def sync_data():
         conn.enable_device()
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"CRITICAL ERROR: {e}")
     finally:
         if conn:
-            conn.disconnect()
+            try:
+                conn.disconnect()
+            except Exception:
+                pass
             print("Disconnected.")
 
 if __name__ == "__main__":
