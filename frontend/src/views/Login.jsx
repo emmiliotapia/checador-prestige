@@ -71,16 +71,16 @@ export default function Login() {
             )}
 
             <div>
-              <label className="block text-obsidian-300 text-sm font-medium mb-2 uppercase tracking-wider">Correo Corporativo</label>
+              <label className="block text-obsidian-300 text-sm font-medium mb-2 uppercase tracking-wider">Usuario o Correo</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-obsidian-500" />
                 </div>
                 <input
-                  type="email"
+                  type="text"
                   required
                   className="block w-full pl-10 pr-3 py-3 border border-obsidian-700 rounded-lg bg-obsidian-950 text-obsidian-50 placeholder-obsidian-600 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-all"
-                  placeholder="gerencia@casinoprestige.com"
+                  placeholder="root"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
