@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, Lock, Mail } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://164.92.110.179:8100';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function Login() {
   const [email, setEmail] = useState('');
