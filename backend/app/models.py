@@ -25,6 +25,20 @@ class Area(Base):
 
     tenant = relationship("Tenant", back_populates="areas")
     empleados = relationship("Empleado", back_populates="area")
+    usuarios = relationship("Usuario", back_populates="area")
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    rol = Column(String, nullable=False) # 'ADMIN' or 'MANAGER'
+    area_id = Column(UUID(as_uuid=True), ForeignKey("areas.id"), nullable=True) # Only if role is MANAGER
+
+    tenant = relationship("Tenant")
+    area = relationship("Area", back_populates="usuarios")
 
 class Empleado(Base):
     __tablename__ = "empleados"

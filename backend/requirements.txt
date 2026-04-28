@@ -6,3 +6,5 @@ pydantic
 pydantic-settings
 python-multipart
 python-dotenv
+PyJWT
+passlib[bcrypt]

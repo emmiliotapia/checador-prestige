@@ -45,3 +45,25 @@ class RegistroDetailOut(BaseModel):
     nombre_empleado: str
     id_reloj: str
     model_config = ConfigDict(from_attributes=True)
+
+class UsuarioBase(BaseModel):
+    email: str
+    rol: str
+    tenant_id: uuid.UUID
+    area_id: Optional[uuid.UUID] = None
+
+class UsuarioCreate(UsuarioBase):
+    password: str
+
+class UsuarioOut(UsuarioBase):
+    id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    usuario: UsuarioOut
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str

@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy.orm import Session
-from app import models, database
+from app import models, database, auth
 
 def seed_db():
     db = database.SessionLocal()
@@ -51,6 +51,32 @@ def seed_db():
             db.add(user_employee)
             db.commit()
             print(f"Created user employee: {user_employee.nombre_completo}")
+
+        # Create ROOT User
+        root_user = db.query(models.Usuario).filter(models.Usuario.email == "root").first()
+        if not root_user:
+            root_user = models.Usuario(
+                tenant_id=tenant_id,
+                email="root",
+                hashed_password=auth.get_password_hash("F4nny8888!"),
+                rol="ROOT"
+            )
+            db.add(root_user)
+            db.commit()
+            print("Created ROOT user")
+
+        # Create Admin User (Aldo)
+        admin_user = db.query(models.Usuario).filter(models.Usuario.email == "admin").first()
+        if not admin_user:
+            admin_user = models.Usuario(
+                tenant_id=tenant_id,
+                email="admin",
+                hashed_password=auth.get_password_hash("admin2026"),
+                rol="ADMIN"
+            )
+            db.add(admin_user)
+            db.commit()
+            print("Created Admin user (Aldo)")
 
     finally:
         db.close()
