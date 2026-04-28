@@ -11,6 +11,9 @@ class AreaBase(BaseModel):
 class AreaCreate(AreaBase):
     pass
 
+class AreaUpdate(BaseModel):
+    correo_responsable: str
+
 class AreaOut(AreaBase):
     id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
@@ -18,6 +21,7 @@ class AreaOut(AreaBase):
 class EmpleadoBase(BaseModel):
     nombre_completo: str
     id_reloj: str
+    puesto: Optional[str] = None
     area_id: uuid.UUID
     tenant_id: uuid.UUID
 

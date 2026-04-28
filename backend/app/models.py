@@ -48,6 +48,7 @@ class Empleado(Base):
     area_id = Column(UUID(as_uuid=True), ForeignKey("areas.id"), nullable=False)
     id_reloj = Column(String, nullable=False)  # ID in the physical device
     nombre_completo = Column(String, nullable=False)
+    puesto = Column(String, nullable=True)
 
     tenant = relationship("Tenant", back_populates="empleados")
     area = relationship("Area", back_populates="empleados")

@@ -129,6 +129,25 @@ def create_area(area: schemas.AreaCreate, db: Session = Depends(get_db)):
     db.refresh(db_area)
     return db_area
 
+@app.put("/api/areas/{area_id}", response_model=schemas.AreaOut)
+def update_area(
+    area_id: uuid.UUID, 
+    area_update: schemas.AreaUpdate, 
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.rol not in ["ROOT", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    db_area = db.query(models.Area).filter(models.Area.id == area_id).first()
+    if not db_area:
+        raise HTTPException(status_code=404, detail="Area not found")
+        
+    db_area.correo_responsable = area_update.correo_responsable
+    db.commit()
+    db.refresh(db_area)
+    return db_area
+
 @app.get("/api/reportes/exportar")
 def export_report(
     tenant_id: uuid.UUID, 

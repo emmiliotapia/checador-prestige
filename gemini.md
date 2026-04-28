@@ -43,5 +43,11 @@ Para evitar romper el sistema de nuevo, ten en cuenta estos antecedentes histór
 - **Causa:** Cloudflare en modo "Flexible" enviando tráfico por HTTP a un Nginx Proxy Manager que tiene activado "Force SSL".
 - **Solución:** Cloudflare debe estar estrictamente configurado en modo SSL/TLS: **"Full" o "Full (Strict)"**.
 
+## 🛑 4. Reglas de Despliegue y Desarrollo (OPTIMIZACIÓN)
+
+1. **Despliegues Empaquetados:** **NUNCA** ejecutes reconstrucciones del VPS por cada pequeño cambio. Agrupa todas tus modificaciones en Backend, Frontend y scripts, y realiza un **único despliegue final** llamando a `deploy.ps1`. El tiempo y los tokens del usuario son valiosos.
+2. **Sincronización de Base de Datos:** Si alteras un modelo en `models.py` (ej. agregar `puesto`), recuerda que `Base.metadata.create_all` no altera tablas existentes. Debes inyectar sentencias SQL directas (Ej. `ALTER TABLE`) en los scripts de migración o en tu propio script de inyección (como `importar_empleados.py`).
+3. **Módulos Frontend:** Cualquier nueva vista (Ej. Gestión de Áreas) debe respetar fielmente el diseño "Gold & Obsidian" y las paletas definidas en Tailwind. 
+
 ---
 *Nota para la IA: Actúa siempre como un desarrollador Senior. Eres "Dios" en este repositorio, pero respeta estrictamente estas reglas.*

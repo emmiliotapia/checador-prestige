@@ -8,6 +8,7 @@ import DirectorioView from './views/DirectorioView';
 import ReportesView from './views/ReportesView';
 import ConfiguracionView from './views/ConfiguracionView';
 import Login from './views/Login';
+import AreasView from './views/AreasView';
 
 const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -143,7 +144,7 @@ function MainLayout() {
       case 'inicio': return <InicioView />;
       case 'empleados': return <DirectorioView />;
       case 'reportes': return <ReportesView />;
-      case 'areas': return <div className="p-8 text-center text-slate-400">Vista de Áreas en desarrollo...</div>;
+      case 'areas': return <AreasView />;
       case 'configuracion': return <ConfiguracionView />;
       default: return <InicioView />;
     }

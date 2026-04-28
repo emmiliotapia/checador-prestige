@@ -9,3 +9,5 @@ python-dotenv
 PyJWT
 passlib[bcrypt]
 bcrypt==3.2.2
+pandas
+openpyxl
