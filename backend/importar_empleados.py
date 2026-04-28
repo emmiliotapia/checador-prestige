@@ -21,6 +21,15 @@ def importar_datos():
             # If it already exists, it will throw an error, which we can safely ignore
             pass
 
+        # Limpiar datos corruptos (ids con decimales)
+        try:
+            db.execute(text("UPDATE empleados SET id_reloj = split_part(id_reloj, '.', 1) WHERE id_reloj LIKE '%.0';"))
+            db.commit()
+            print("Se limpiaron los decimales de la base de datos.")
+        except Exception as e:
+            db.rollback()
+            print(f"Error limpiando decimales: {e}")
+
         # Load Excel
         try:
             df = pd.read_excel('/app/bd_empleados.xlsx') # the file will be mapped here
@@ -43,8 +52,11 @@ def importar_datos():
         # Iterate rows
         # Assumed columns: id, nombre, area, puesto
         for index, row in df.iterrows():
-            id_reloj = str(row.iloc[0]).strip()
-            if id_reloj == 'nan': continue
+            raw_id = str(row.iloc[0]).strip()
+            if raw_id == 'nan': continue
+            
+            # Remover .0 si se leyó como float (ej. 1001.0 -> 1001)
+            id_reloj = raw_id.split('.')[0]
                 
             nombre = str(row.iloc[1]).strip()
             nombre_area = str(row.iloc[2]).strip()

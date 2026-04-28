@@ -43,6 +43,11 @@ Para evitar romper el sistema de nuevo, ten en cuenta estos antecedentes histór
 - **Causa:** Cloudflare en modo "Flexible" enviando tráfico por HTTP a un Nginx Proxy Manager que tiene activado "Force SSL".
 - **Solución:** Cloudflare debe estar estrictamente configurado en modo SSL/TLS: **"Full" o "Full (Strict)"**.
 
+### 🔴 Error: IDs de Empleados con decimales (Ej. `1001.0`)
+- **Contexto:** Al importar `bd_empleados.xlsx` usando pandas.
+- **Causa:** Pandas lee automáticamente columnas numéricas vacías (o enteras) como `float`, agregando `.0`.
+- **Solución:** Castear siempre el `id_reloj` eliminando decimales (ej. `str(row.iloc[0]).split('.')[0].strip()`) o usar `dtype={'id': str}` en `pd.read_excel`. Además, usar SQL `UPDATE empleados SET id_reloj = split_part(id_reloj, '.', 1);` para limpiar los datos corruptos.
+
 ## 🛑 4. Reglas de Despliegue y Desarrollo (OPTIMIZACIÓN)
 
 1. **Despliegues Empaquetados:** **NUNCA** ejecutes reconstrucciones del VPS por cada pequeño cambio. Agrupa todas tus modificaciones en Backend, Frontend y scripts, y realiza un **único despliegue final** llamando a `deploy.ps1`. El tiempo y los tokens del usuario son valiosos.
