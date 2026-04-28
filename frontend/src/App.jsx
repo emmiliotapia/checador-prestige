@@ -44,51 +44,51 @@ function InicioView() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+      <div className="bg-obsidian-900 rounded-2xl border border-obsidian-800 shadow-xl overflow-hidden">
+        <div className="p-6 border-b border-obsidian-800 bg-obsidian-950/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <Activity className="text-gold-600" size={20} />
-            <h3 className="text-lg font-bold text-slate-900 uppercase tracking-widest">Actividad Reciente</h3>
+            <Activity className="text-gold-500" size={20} />
+            <h3 className="text-lg font-bold text-obsidian-50 uppercase tracking-widest">Actividad Reciente</h3>
           </div>
-          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Actualización en vivo</span>
+          <span className="text-xs font-bold text-gold-600 uppercase tracking-wider bg-gold-500/10 px-2 py-1 rounded">Actualización en vivo</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+            <thead className="bg-obsidian-950/50 text-obsidian-400 text-xs uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4">Empleado</th>
-                <th className="px-6 py-4">Hora</th>
-                <th className="px-6 py-4">Tipo</th>
-                <th className="px-6 py-4">Dispositivo</th>
+                <th className="px-6 py-4 border-b border-obsidian-800">Empleado</th>
+                <th className="px-6 py-4 border-b border-obsidian-800">Hora</th>
+                <th className="px-6 py-4 border-b border-obsidian-800">Tipo</th>
+                <th className="px-6 py-4 border-b border-obsidian-800">Dispositivo</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-obsidian-800">
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-slate-400 uppercase tracking-widest text-sm">Cargando actividad...</td>
+                  <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
                 </tr>
               ) : recentRecords.length > 0 ? (
                 recentRecords.map((reg) => (
-                  <tr key={reg.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={reg.id} className="hover:bg-obsidian-800/50 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-obsidian-100 text-obsidian-900 rounded-full flex items-center justify-center font-bold text-xs uppercase">
+                        <div className="w-10 h-10 bg-gold-500/10 text-gold-500 rounded-full flex items-center justify-center font-bold text-sm border border-gold-500/20 uppercase">
                           {reg.nombre_empleado.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-bold text-obsidian-900">{reg.nombre_empleado}</p>
-                          <p className="text-xs text-obsidian-400 font-mono">ID: {reg.id_reloj}</p>
+                          <p className="font-bold text-obsidian-100 uppercase">{reg.nombre_empleado}</p>
+                          <p className="text-xs text-gold-500/70 font-mono">ID: {reg.id_reloj}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-obsidian-600 text-sm font-medium">
+                    <td className="px-6 py-4 text-obsidian-100 text-sm font-bold tracking-wider">
                       {format(new Date(reg.timestamp_checada), 'HH:mm:ss')}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${
                         reg.tipo_registro === '0' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-blue-100 text-blue-700'
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                       }`}>
                         {reg.tipo_registro === '0' ? 'Entrada' : 'Salida'}
                       </span>
@@ -100,7 +100,7 @@ function InicioView() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-slate-400 italic">
+                  <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 italic">
                     No hay actividad reciente registrada.
                   </td>
                 </tr>

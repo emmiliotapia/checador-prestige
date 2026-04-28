@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Mail, Edit2, CheckCircle2, X } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://164.92.110.179:8100';
+import api from '../api';
 
 export default function AreasView() {
   const [areas, setAreas] = useState([]);
@@ -21,10 +19,7 @@ export default function AreasView() {
   const fetchAreas = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_URL}/api/areas?tenant_id=${user.tenant_id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get(`/areas?tenant_id=${user.tenant_id}`);
       setAreas(res.data);
     } catch (err) {
       console.error(err);
@@ -36,10 +31,8 @@ export default function AreasView() {
 
   const handleSave = async (areaId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/api/areas/${areaId}`, 
-        { correo_responsable: editEmail },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.put(`/areas/${areaId}`, 
+        { correo_responsable: editEmail }
       );
       setAreas(areas.map(a => a.id === areaId ? { ...a, correo_responsable: editEmail } : a));
       setEditingId(null);
