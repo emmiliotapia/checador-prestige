@@ -9,13 +9,13 @@
 ## Orquestación (Docker Compose)
 El sistema se despliega como un stack de tres servicios interconectados:
 
-| **Attendance Backend** | `164.92.110.179` (NPM Host) | `172.17.0.1:8100` | Tráfico IP-to-IP validado |
-| **Attendance Frontend** | `3100` | `80` | Interfaz web React |
-| **Attendance DB** | `5436` | `5432` | PostgreSQL 15 dedicado |
+| **Attendance Backend** | (IP Pública) | `172.17.0.1:8100` | Tráfico IP-to-IP validado |
+| **Attendance Frontend** | (Puerto Frontend) | `80` | Interfaz web React |
+| **Attendance DB** | (Puerto DB) | `5432` | PostgreSQL 15 dedicado |
 
 ## Configuración de Ruteo (Nginx Proxy Manager)
 Para evitar bloqueos de firewall en la red del cliente (Casino), el tráfico se rutea así:
-1. **Origen**: Dispositivo SilkBio apunta a `http://164.92.110.179:80`.
+1. **Origen**: Dispositivo SilkBio apunta a la IP Pública en puerto 80.
 2. **NPM**: Captura la petición por IP directa.
 3. **Forward**: Redirige a `172.17.0.1` (Docker Host IP) en el puerto `8100`.
 4. **Resultado**: Tráfico limpio hacia FastAPI sin errores de Hairpin NAT.
@@ -27,13 +27,13 @@ Para evitar bloqueos de firewall en la red del cliente (Casino), el tráfico se 
 ## Configuración del Firewall (UFW)
 Para el correcto funcionamiento, los siguientes puertos deben estar abiertos:
 ```bash
-sudo ufw allow 8100/tcp  # Webhook ADMS
-sudo ufw allow 3100/tcp  # Interfaz Web
+sudo ufw allow (Puerto Backend)/tcp  # Webhook ADMS
+sudo ufw allow (Puerto Frontend)/tcp  # Interfaz Web
 ```
 
 ### Endpoint: `POST /iclock/cdata`
 Debido a limitaciones de firmware del SilkBio TC 100 (no soporta DNS), la conexión es por IP directa:
-`http://164.92.110.179/iclock/cdata` (Puerto 80).
+`http://(IP Pública)/iclock/cdata` (Puerto 80).
 
 ## Verificación y Pruebas
 Para asegurar que el despliegue es correcto, seguir estos pasos:
@@ -46,7 +46,7 @@ python scratch/test_zkteco_push.py
 Si el resultado es `OK`, el backend está listo para recibir datos reales.
 
 ### 2. Monitoreo en Vivo
-Acceder a `http://164.92.110.179:3100` y observar la tabla de "Actividad Reciente". La marca enviada en el paso anterior debería aparecer en menos de 10 segundos.
+Acceder a `http://(IP Pública):(Puerto Frontend)` y observar la tabla de "Actividad Reciente".
 
 ## Aislamiento de Datos
 La base de datos utiliza un volumen persistente llamado `checador_postgres_attendance_data` para garantizar que los registros no se pierdan al reiniciar o actualizar los contenedores.

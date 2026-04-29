@@ -5,10 +5,12 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: attendance_secret
+      # Contraseña de la base de datos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-attendance_secret}
       POSTGRES_DB: smartops_attendance
     ports:
-      - "5436:5432"
+      # Puerto de la base de datos
+      - "${DB_PORT:-5436}:5432"
     volumes:
       - postgres_attendance_data:/var/lib/postgresql/data
 
@@ -17,9 +19,10 @@ services:
     container_name: smartops_attendance_backend
     restart: always
     environment:
-      - DATABASE_URL=postgresql://postgres:attendance_secret@attendance-db:5432/smartops_attendance
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-attendance_secret}@attendance-db:5432/smartops_attendance
     ports:
-      - "8100:8100"
+      # Puerto del backend
+      - "${BACKEND_PORT:-8100}:8100"
     depends_on:
       - attendance-db
 
@@ -28,7 +31,8 @@ services:
     container_name: smartops_attendance_frontend
     restart: always
     ports:
-      - "3100:80"
+      # Puerto del frontend
+      - "${FRONTEND_PORT:-3100}:80"
     depends_on:
       - attendance-backend
 
