@@ -5,9 +5,9 @@ Este documento sirve como base de conocimiento técnica para cualquier agente de
 ## 🏗️ 1. Arquitectura del Sistema
 El sistema es una plataforma de gestión de asistencia biométrica basada en el protocolo **ADMS (ZKTeco)**.
 
-- **Backend**: FastAPI (Python 3.11). Corre en el puerto `8100`.
-- **Frontend**: React + Vite + Tailwind CSS. Diseño "Gold & Obsidian". Corre en el puerto `3100`.
-- **Base de Datos**: PostgreSQL 15 para producción. SQLite para el caché del bridge local.
+- **Backend**: FastAPI (Python 3.11). Ver `secrets.md` para puertos.
+- **Frontend**: React + Vite + Tailwind CSS. Diseño "Gold & Obsidian". Ver `secrets.md` para puertos.
+- **Base de Datos**: PostgreSQL 15 para producción.
 - **Protocolo de Comunicación**: Webhook ADMS (HTTP/Plain Text).
 - **Infraestructura**: VPS Ubuntu, Docker Compose, Nginx Proxy Manager (NPM).
 
@@ -34,7 +34,7 @@ El sistema es una plataforma de gestión de asistencia biométrica basada en el 
 ## ⚠️ 4. Reglas Críticas y Errores Conocidos
 - **Bcrypt**: NO actualizar `bcrypt`. Debe estar anclado a `==3.2.2` por incompatibilidad con `passlib`.
 - **Pandas**: Al importar empleados de Excel, forzar `dtype={'id_reloj': str}` para evitar que se agreguen decimales (ej. `1001.0`).
-- **SSL/Cloudflare**: El dominio `time-prestige.smartopsia.com` usa Cloudflare. Modo SSL debe ser **Full (Strict)**.
+- **SSL/Cloudflare**: El dominio (ver `secrets.md`) usa Cloudflare. Modo SSL debe ser **Full (Strict)**.
 
 ## 🔐 5. Roles y Seguridad (RBAC)
 - **ROOT**: Acceso total. Puede resetear claves, editar checadas y ver logs de sistema.
@@ -49,7 +49,13 @@ El despliegue se realiza mediante `.\deploy.ps1`. Este script:
 4. (Opcional) Ejecuta `python migrate.py` para actualizar el esquema de la BD.
 
 ## 📋 7. Próximos Pasos (Work in Progress)
-- [ ] Implementación de filtro por Área en el Directorio.
-- [ ] Reporte CSV con separación de columnas `Fecha` y `Hora`.
-- [ ] Dashboard con estadísticas reales (Asistencias hoy, Retardos, Faltas).
+- [x] Implementación de filtro por Área en el Directorio y Dashboard.
+- [x] Reporte CSV y PDF con separación de columnas Fecha y Hora.
+- [x] Dashboard con estadísticas reales (Asistencias hoy, Retardos, Faltas).
 - [ ] Checklist granular de permisos por módulo para usuarios ADMIN/RRHH.
+
+## 🌟 8. Mejoras de Modernización (Abril 2026)
+- **Normalización de Datos**: Eliminación automática de acentos (preservando Ñ) para evitar errores en nómina y n8n.
+- **Exportación Multimedia**: Soporte para PDF premium con estética Gold & Obsidian.
+- **Filtros por Área**: Capacidad de segmentar todo el sistema por áreas operativas.
+- **Dashboard Dinámico**: Estadísticas en tiempo real y tabla de actividad ordenable.

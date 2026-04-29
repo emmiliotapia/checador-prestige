@@ -465,7 +465,7 @@ def get_dashboard_stats(
             # Tolerancia en minutos
             tolerancia = reg.empleado.horario.tolerancia_entrada
             # Usamos datetime.combine para comparar tiempos con tolerancia
-            base_dt = datetime.combine(hoy, hora_entrada_h)
+            base_dt = datetime.combine(hoy_dt, hora_entrada_h)
             limite_entrada = (base_dt + timedelta(minutes=tolerancia)).time()
             
             if hora_checada > limite_entrada:

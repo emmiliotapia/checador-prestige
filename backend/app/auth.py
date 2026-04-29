@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from app import models, database
 
 # Secret key for JWT. In production, this MUST come from env variables.
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "b3a1a9e334a1b8c2d9f4e2c8a0b1d3f5e7c9a2b4d6f8e0c2a4b6d8f0")
+# Secret key for JWT. In production, this MUST come from env variables.
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "change-me-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 

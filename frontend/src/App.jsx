@@ -67,6 +67,16 @@ function InicioView() {
   };
 
   const sortedRecords = [...recentRecords].sort((a, b) => {
+    // Si estamos ordenando por tiempo, usar objetos Date para comparar correctamente
+    if (sortConfig.key === 'timestamp_checada') {
+      const dateA = new Date(a.timestamp_checada);
+      const dateB = new Date(b.timestamp_checada);
+      if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    }
+    
+    // Para otros campos (nombre), comparar como strings
     if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
     if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
     return 0;

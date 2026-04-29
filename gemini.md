@@ -4,8 +4,8 @@
 
 ## 🏢 1. Arquitectura del Proyecto
 Este es el sistema **Checador Prestige**, un webhook ADMS para dispositivos biométricos ZKTeco y un panel web de administración.
-- **Backend:** FastAPI (Python) + PostgreSQL. (Corre en el puerto `8100` en producción).
-- **Frontend:** React + Vite + Tailwind CSS. (Corre en el puerto `3100` en producción).
+- **Backend:** FastAPI (Python) + PostgreSQL. (Ver `secrets.md` para puertos).
+- **Frontend:** React + Vite + Tailwind CSS. (Ver `secrets.md` para puertos).
 - **Servidor (VPS):** Ubuntu Server con Docker Compose y Nginx Proxy Manager (NPM).
 
 ## 🗺️ 2. Enrutador de Documentación (¿Qué vas a hacer?)
@@ -35,9 +35,9 @@ Para evitar romper el sistema de nuevo, ten en cuenta estos antecedentes histór
 - **Solución:** Nunca uses `scp -r` directo. El script `deploy.ps1` debe empaquetar usando `tar --exclude="node_modules"` y mandar el `.tar.gz`.
 
 ### 🔴 Error: `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`
-- **Contexto:** Chrome rechaza cargar la web al usar `time.prestige.smartopsia.com`.
+- **Contexto:** Chrome rechaza cargar la web al usar el subdominio configurado.
 - **Causa:** Cloudflare Universal SSL (gratuito) NO soporta subdominios de segundo nivel (dos puntos).
-- **Solución:** Se debe cambiar a un subdominio de primer nivel (ej. `time-prestige.smartopsia.com`) o deshabilitar el proxy de Cloudflare (Nube gris) y dejar que Nginx Proxy Manager negocie el SSL.
+- **Solución:** Se debe cambiar a un subdominio de primer nivel o deshabilitar el proxy de Cloudflare (Nube gris) y dejar que Nginx Proxy Manager negocie el SSL.
 
 ### 🔴 Error: Ciclo infinito de redirecciones (Too Many Redirects)
 - **Contexto:** Nginx Proxy Manager marca error 502 o error de redirección.
