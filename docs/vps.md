@@ -17,7 +17,7 @@ Para que tu dominio funcione correctamente y reciba el tráfico de los checadore
 
 ### 1. Para el Panel de Administración Web (El Frontend)
 Esta es la ruta por la cual accederán los gerentes y tú para revisar la información y reportes.
-- **Domain Names:** `time.prestige.smartopsia.com`
+- **Domain Names:** `time-prestige.smartopsia.com`
 - **Scheme:** `http`
 - **Forward Hostname / IP:** `172.17.0.1` (IP interna del host de Docker).
 - **Forward Port:** `3100`

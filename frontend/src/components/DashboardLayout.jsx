@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Users, Map, BarChart2, LogOut, Settings } from 'lucide-react';
+import { Home, Users, Map, BarChart2, LogOut, Settings, Clock } from 'lucide-react';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <button
@@ -33,6 +33,7 @@ export default function DashboardLayout({ children, currentView, setView }) {
   const menuItems = [
     { id: 'inicio', label: 'Inicio', icon: Home },
     { id: 'empleados', label: 'Empleados', icon: Users },
+    { id: 'horarios', label: 'Horarios', icon: Clock }, // Nuevo módulo
     { id: 'areas', label: 'Áreas', icon: Map },
     { id: 'reportes', label: 'Reportes', icon: BarChart2 },
     { id: 'configuracion', label: 'Configuración', icon: Settings },

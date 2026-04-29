@@ -7,31 +7,34 @@ import uuid
 
 from . import models, database, schemas
 
+# Router para la integración con el Puente Local (Bridge)
 router = APIRouter(prefix="/api/v1/bridge", tags=["bridge"])
 
+# Esquema para registros individuales enviados desde el bridge
 class BridgeRecord(BaseModel):
-    user_id: str
+    user_id: str # ID del reloj (id_reloj)
     timestamp: datetime
 
+# Esquema para el payload de sincronización masiva
 class BridgeSyncRequest(BaseModel):
-    sn: str
+    sn: str # Serial Number del dispositivo físico
     records: List[BridgeRecord]
 
 @router.post("/sync")
 async def bridge_sync(payload: BridgeSyncRequest, db: Session = Depends(database.get_db)):
     """
-    Endpoint for local bridge script to push data.
-    Format: {"sn": "SN123", "records": [{"user_id": "1001", "timestamp": "..."}]}
+    Endpoint para que el script bridge local suba datos cacheados.
+    Permite resiliencia ante caídas de internet en el casino.
     """
     count = 0
     for record in payload.records:
-        # Find employee by id_reloj
+        # Buscamos al empleado por su ID de reloj físico
         empleado = db.query(models.Empleado).filter(
             models.Empleado.id_reloj == record.user_id
         ).first()
         
         if empleado:
-            # Check if this record already exists to avoid duplicates (optional but recommended)
+            # Evitamos duplicados verificando si ya existe la checada en ese segundo exacto
             exists = db.query(models.Registro).filter(
                 models.Registro.empleado_id == empleado.id,
                 models.Registro.timestamp_checada == record.timestamp
@@ -42,13 +45,13 @@ async def bridge_sync(payload: BridgeSyncRequest, db: Session = Depends(database
                     tenant_id=empleado.tenant_id,
                     empleado_id=empleado.id,
                     timestamp_checada=record.timestamp,
-                    tipo_registro="0", # Default to Check-In, can be enhanced later
+                    tipo_registro="0", # Por defecto entrada, el bridge puede mejorarse para enviar el tipo
                     dispositivo_sn=payload.sn
                 )
                 db.add(nuevo_registro)
                 count += 1
         else:
-            print(f"Bridge Sync: Employee with id_reloj {record.user_id} not found.")
+            print(f"Bridge Sync: Empleado con id_reloj {record.user_id} no encontrado.")
 
     db.commit()
     return {"status": "success", "processed": count}

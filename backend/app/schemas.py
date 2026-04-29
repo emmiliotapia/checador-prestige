@@ -6,15 +6,34 @@ from typing import Optional, List
 class AreaBase(BaseModel):
     nombre_area: str
     correo_responsable: Optional[str] = None
+    encargado_id: Optional[uuid.UUID] = None
     tenant_id: uuid.UUID
 
 class AreaCreate(AreaBase):
     pass
 
 class AreaUpdate(BaseModel):
-    correo_responsable: str
+    nombre_area: Optional[str] = None
+    correo_responsable: Optional[str] = None
+    encargado_id: Optional[uuid.UUID] = None
 
 class AreaOut(AreaBase):
+    id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class HorarioBase(BaseModel):
+    nombre: str
+    hora_entrada: str
+    hora_salida: str
+    tolerancia_entrada: int = 15
+    inicio_comida: Optional[str] = None
+    fin_comida: Optional[str] = None
+    tenant_id: uuid.UUID
+
+class HorarioCreate(HorarioBase):
+    pass
+
+class HorarioOut(HorarioBase):
     id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
 
@@ -23,6 +42,7 @@ class EmpleadoBase(BaseModel):
     id_reloj: str
     puesto: Optional[str] = None
     area_id: uuid.UUID
+    horario_id: Optional[uuid.UUID] = None
     tenant_id: uuid.UUID
 
 class EmpleadoCreate(EmpleadoBase):
@@ -71,3 +91,11 @@ class Token(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+class ComandoOut(BaseModel):
+    id: uuid.UUID
+    dispositivo_sn: str
+    comando: str
+    ejecutado: bool
+    fecha_creacion: datetime
+    model_config = ConfigDict(from_attributes=True)

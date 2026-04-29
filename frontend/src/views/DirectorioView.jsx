@@ -9,6 +9,11 @@ export default function DirectorioView() {
   const [areas, setAreas] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState({ key: 'nombre_completo', direction: 'asc' });
+  const itemsPerPage = 25;
+
   const [newEmployee, setNewEmployee] = useState({
     nombre_completo: '',
     id_reloj: '',
@@ -29,7 +34,7 @@ export default function DirectorioView() {
       setEmployees(empRes.data);
       setAreas(areaRes.data);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error al cargar datos:", error);
     } finally {
       setLoading(false);
     }
@@ -45,6 +50,42 @@ export default function DirectorioView() {
     } catch (error) {
       alert("Error al guardar empleado");
     }
+  };
+
+  // --- LÓGICA DE BÚSQUEDA, FILTRADO Y ORDENAMIENTO ---
+  
+  const filteredEmployees = employees.filter(emp => 
+    emp.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.id_reloj.includes(searchTerm)
+  );
+
+  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
+    let aValue = a[sortConfig.key];
+    let bValue = b[sortConfig.key];
+
+    // Manejo especial para el nombre del área
+    if (sortConfig.key === 'area') {
+      aValue = areas.find(area => area.id === a.area_id)?.nombre_area || '';
+      bValue = areas.find(area => area.id === b.area_id)?.nombre_area || '';
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
+  const paginatedEmployees = sortedEmployees.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
   return (
@@ -87,22 +128,66 @@ export default function DirectorioView() {
             <input 
               type="text" 
               placeholder="Buscar por nombre o ID..." 
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset a primera página al buscar
+              }}
               className="w-full pl-10 pr-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 placeholder-obsidian-600 focus:outline-none focus:ring-2 focus:ring-gold-500 transition-all"
             />
+          </div>
+          <div className="flex items-center space-x-2 text-obsidian-400 text-sm font-bold uppercase">
+            <span>Página {currentPage} de {totalPages || 1}</span>
+            <div className="flex space-x-1">
+              <button 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-2 bg-obsidian-950 border border-obsidian-800 rounded disabled:opacity-30 hover:bg-obsidian-800 transition-colors"
+              >
+                &lt;
+              </button>
+              <button 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="p-2 bg-obsidian-950 border border-obsidian-800 rounded disabled:opacity-30 hover:bg-obsidian-800 transition-colors"
+              >
+                &gt;
+              </button>
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-obsidian-950/50 text-obsidian-400 text-xs uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4 border-b border-obsidian-800">Empleado</th>
-                <th className="px-6 py-4 border-b border-obsidian-800">ID Reloj</th>
-                <th className="px-6 py-4 border-b border-obsidian-800">Área</th>
-                <th className="px-6 py-4 border-b border-obsidian-800">Puesto</th>
+                <th 
+                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
+                  onClick={() => requestSort('nombre_completo')}
+                >
+                  Empleado {sortConfig.key === 'nombre_completo' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th 
+                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
+                  onClick={() => requestSort('id_reloj')}
+                >
+                  ID Reloj {sortConfig.key === 'id_reloj' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th 
+                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
+                  onClick={() => requestSort('area')}
+                >
+                  Área {sortConfig.key === 'area' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th 
+                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
+                  onClick={() => requestSort('puesto')}
+                >
+                  Puesto {sortConfig.key === 'puesto' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-obsidian-800">
-              {employees.length > 0 ? employees.map((emp) => (
+              {paginatedEmployees.length > 0 ? paginatedEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-obsidian-800/50 transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-3">
@@ -129,7 +214,7 @@ export default function DirectorioView() {
               )) : (
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 italic">
-                    No hay empleados registrados.
+                    {loading ? 'Cargando empleados...' : 'No se encontraron resultados.'}
                   </td>
                 </tr>
               )}

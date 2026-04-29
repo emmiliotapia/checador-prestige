@@ -9,6 +9,7 @@ import ReportesView from './views/ReportesView';
 import ConfiguracionView from './views/ConfiguracionView';
 import Login from './views/Login';
 import AreasView from './views/AreasView';
+import HorariosView from './views/HorariosView';
 
 const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -145,6 +146,7 @@ function MainLayout() {
       case 'empleados': return <DirectorioView />;
       case 'reportes': return <ReportesView />;
       case 'areas': return <AreasView />;
+      case 'horarios': return <HorariosView />;
       case 'configuracion': return <ConfiguracionView />;
       default: return <InicioView />;
     }

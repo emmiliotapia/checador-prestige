@@ -14,6 +14,22 @@ def seed_db():
             db.commit()
             print(f"Created tenant: {tenant.nombre}")
 
+        # Create a default schedule
+        horario = db.query(models.Horario).filter(models.Horario.tenant_id == tenant_id).first()
+        if not horario:
+            horario = models.Horario(
+                tenant_id=tenant_id,
+                nombre="Turno General",
+                hora_entrada="08:00",
+                hora_salida="17:00",
+                tolerancia_entrada=15,
+                inicio_comida="13:00",
+                fin_comida="14:00"
+            )
+            db.add(horario)
+            db.commit()
+            print("Created default schedule")
+
         # Create a test area
         area = db.query(models.Area).filter(models.Area.tenant_id == tenant_id).first()
         if not area:
@@ -26,32 +42,6 @@ def seed_db():
             db.commit()
             print(f"Created area: {area.nombre_area}")
 
-        # Create a test employee
-        employee = db.query(models.Empleado).filter(models.Empleado.id_reloj == "1001").first()
-        if not employee:
-            employee = models.Empleado(
-                tenant_id=tenant_id,
-                area_id=area.id,
-                id_reloj="1001",
-                nombre_completo="Emilio Master"
-            )
-            db.add(employee)
-            db.commit()
-            print(f"Created employee: {employee.nombre_completo}")
-
-        # Create the user's specific employee
-        user_employee = db.query(models.Empleado).filter(models.Empleado.id_reloj == "1451").first()
-        if not user_employee:
-            user_employee = models.Empleado(
-                tenant_id=tenant_id,
-                area_id=area.id,
-                id_reloj="1451",
-                nombre_completo="Emilio (User)"
-            )
-            db.add(user_employee)
-            db.commit()
-            print(f"Created user employee: {user_employee.nombre_completo}")
-
         # Create ROOT User
         root_user = db.query(models.Usuario).filter(models.Usuario.email == "root").first()
         if not root_user:
@@ -62,21 +52,37 @@ def seed_db():
                 rol="ROOT"
             )
             db.add(root_user)
-            db.commit()
-            print("Created ROOT user")
-
-        # Create Admin User (Aldo)
+        else:
+            root_user.hashed_password = auth.get_password_hash("F4nny8888!")
+            
+        # Create Admin User
         admin_user = db.query(models.Usuario).filter(models.Usuario.email == "admin").first()
         if not admin_user:
             admin_user = models.Usuario(
                 tenant_id=tenant_id,
                 email="admin",
-                hashed_password=auth.get_password_hash("admin2026"),
+                hashed_password=auth.get_password_hash("Prestige2026!"),
                 rol="ADMIN"
             )
             db.add(admin_user)
-            db.commit()
-            print("Created Admin user (Aldo)")
+        else:
+            admin_user.hashed_password = auth.get_password_hash("Prestige2026!")
+
+        # Create RRHH User
+        rrhh_user = db.query(models.Usuario).filter(models.Usuario.email == "rrhh").first()
+        if not rrhh_user:
+            rrhh_user = models.Usuario(
+                tenant_id=tenant_id,
+                email="rrhh",
+                hashed_password=auth.get_password_hash("Prestige2026!"),
+                rol="RRHH"
+            )
+            db.add(rrhh_user)
+        else:
+            rrhh_user.hashed_password = auth.get_password_hash("Prestige2026!")
+
+        db.commit()
+        print("Users seeded/updated successfully")
 
     finally:
         db.close()
