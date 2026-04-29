@@ -10,8 +10,27 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 
 from fastapi.middleware.cors import CORSMiddleware
+import unicodedata
 
 app = FastAPI(title="SmartOps Time Attendance API")
+
+def normalize_string(s: str) -> str:
+    """
+    Normaliza una cadena eliminando acentos pero preservando la ñ y Ñ.
+    """
+    if not s:
+        return s
+    # Normalizar para separar caracteres base de acentos
+    normalized = unicodedata.normalize('NFD', s)
+    # Filtrar solo caracteres que no sean acentos, pero permitir la Ñ (que es U+0303 en NFD)
+    # En NFD, la Ñ es 'N' + COMBINING TILDE (U+0303). 
+    # La ñ es 'n' + COMBINING TILDE.
+    # Vamos a reconstruir permitiendo solo los caracteres deseados.
+    result = ""
+    for char in normalized:
+        if unicodedata.category(char) != 'Mn' or char == '\u0303':
+            result += char
+    return unicodedata.normalize('NFC', result)
 
 app.include_router(bridge.router)
 
@@ -82,7 +101,7 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
                     # Buscar empleado por su ID de reloj físico
                     empleado = db.query(models.Empleado).filter(models.Empleado.id_reloj == id_reloj).first()
                     
-                    if empleado:
+                    if empleado and empleado.activo:
                         # Evitar duplicados (misma persona, mismo segundo)
                         exists = db.query(models.Registro).filter(
                             models.Registro.empleado_id == empleado.id,
@@ -174,7 +193,12 @@ def create_empleado(
     if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
         raise HTTPException(status_code=403, detail="No tienes permisos")
         
+    # Normalizar nombre antes de guardar
     db_empleado = models.Empleado(**empleado.dict())
+    db_empleado.nombre_completo = normalize_string(db_empleado.nombre_completo)
+    if db_empleado.puesto:
+        db_empleado.puesto = normalize_string(db_empleado.puesto)
+        
     db.add(db_empleado)
     db.commit()
     db.refresh(db_empleado)
@@ -204,6 +228,7 @@ def create_area(
     if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
         raise HTTPException(status_code=403, detail="No autorizado")
     db_area = models.Area(**area.dict())
+    db_area.nombre_area = normalize_string(db_area.nombre_area)
     db.add(db_area)
     db.commit()
     db.refresh(db_area)
@@ -224,7 +249,7 @@ def update_area(
         raise HTTPException(status_code=404, detail="Area no encontrada")
         
     if area_update.nombre_area:
-        db_area.nombre_area = area_update.nombre_area
+        db_area.nombre_area = normalize_string(area_update.nombre_area)
     if area_update.correo_responsable:
         db_area.correo_responsable = area_update.correo_responsable
     if area_update.encargado_id:
@@ -233,6 +258,28 @@ def update_area(
     db.commit()
     db.refresh(db_area)
     return db_area
+
+@app.delete("/api/areas/{area_id}")
+def delete_area(
+    area_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    db_area = db.query(models.Area).filter(models.Area.id == area_id).first()
+    if not db_area:
+        raise HTTPException(status_code=404, detail="Area no encontrada")
+    
+    # Verificar si hay empleados vinculados
+    has_employees = db.query(models.Empleado).filter(models.Empleado.area_id == area_id).first()
+    if has_employees:
+        raise HTTPException(status_code=400, detail="No se puede borrar un área con empleados vinculados. Reasígnelos primero.")
+        
+    db.delete(db_area)
+    db.commit()
+    return {"message": "Área eliminada"}
 
 @app.get("/api/horarios", response_model=List[schemas.HorarioOut])
 def list_horarios(tenant_id: uuid.UUID, db: Session = Depends(get_db)):
@@ -335,13 +382,16 @@ def change_password(
 @app.get("/api/registros/recientes", response_model=List[schemas.RegistroDetailOut])
 def list_recent_registros(
     tenant_id: uuid.UUID, 
-    limit: int = 10, 
+    limit: int = 50,
+    area_id: Optional[uuid.UUID] = None,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     query = db.query(models.Registro).filter(models.Registro.tenant_id == tenant_id)
     
-    if current_user.rol == "MANAGER" and current_user.area_id:
+    if area_id:
+        query = query.join(models.Empleado).filter(models.Empleado.area_id == area_id)
+    elif current_user.rol == "MANAGER" and current_user.area_id:
         query = query.join(models.Empleado).filter(models.Empleado.area_id == current_user.area_id)
         
     registros = query.order_by(models.Registro.timestamp_checada.desc()).limit(limit).all()
@@ -358,3 +408,205 @@ def list_recent_registros(
         })
     
     return result
+
+# --- ENDPOINTS ADICIONALES (Gestión, Reportes, Dashboard) ---
+
+@app.get("/api/dashboard/stats")
+def get_dashboard_stats(
+    tenant_id: uuid.UUID,
+    fecha_hoy: Optional[str] = None, # Formato YYYY-MM-DD
+    area_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Estadísticas para el Dashboard de Inicio.
+    Calcula asistencias, retardos y faltas aproximadas.
+    """
+    if fecha_hoy:
+        hoy_dt = datetime.strptime(fecha_hoy, "%Y-%m-%d").date()
+    else:
+        hoy_dt = datetime.now().date()
+        
+    inicio_dia = datetime.combine(hoy_dt, datetime.min.time())
+    fin_dia = datetime.combine(hoy_dt, datetime.max.time())
+
+    query_regs = db.query(models.Registro).filter(
+        models.Registro.tenant_id == tenant_id,
+        models.Registro.timestamp_checada >= inicio_dia,
+        models.Registro.timestamp_checada <= fin_dia
+    )
+
+    query_emps = db.query(models.Empleado).filter(
+        models.Empleado.tenant_id == tenant_id,
+        models.Empleado.activo == True
+    )
+
+    if area_id:
+        query_regs = query_regs.join(models.Empleado).filter(models.Empleado.area_id == area_id)
+        query_emps = query_emps.filter(models.Empleado.area_id == area_id)
+    elif current_user.rol == "MANAGER" and current_user.area_id:
+        query_regs = query_regs.join(models.Empleado).filter(models.Empleado.area_id == current_user.area_id)
+        query_emps = query_emps.filter(models.Empleado.area_id == current_user.area_id)
+
+    registros_hoy = query_regs.all()
+    empleados_activos = query_emps.count()
+    
+    # Entradas de hoy
+    entradas = [r for r in registros_hoy if r.tipo_registro == "0"]
+    
+    # Cálculo de retardos
+    retardos = 0
+    for reg in entradas:
+        if reg.empleado.horario:
+            hora_entrada_h = datetime.strptime(reg.empleado.horario.hora_entrada, "%H:%M").time()
+            hora_checada = reg.timestamp_checada.time()
+            
+            # Tolerancia en minutos
+            tolerancia = reg.empleado.horario.tolerancia_entrada
+            # Usamos datetime.combine para comparar tiempos con tolerancia
+            base_dt = datetime.combine(hoy, hora_entrada_h)
+            limite_entrada = (base_dt + timedelta(minutes=tolerancia)).time()
+            
+            if hora_checada > limite_entrada:
+                retardos += 1
+
+    # Faltas aproximadas (empleados activos que no tienen entrada hoy)
+    emp_ids_con_entrada = {r.empleado_id for r in entradas}
+    faltas = max(0, empleados_activos - len(emp_ids_con_entrada))
+
+    return {
+        "asistencias_hoy": len(entradas),
+        "retardos_hoy": retardos,
+        "faltas_hoy": faltas,
+        "empleados_totales": empleados_activos
+    }
+
+@app.get("/api/reportes/exportar")
+def exportar_reporte_detallado(
+    tenant_id: uuid.UUID,
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+    area_id: Optional[uuid.UUID] = None,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Genera los datos enriquecidos para la exportación CSV.
+    Separa fecha y hora, e incluye área y puesto.
+    """
+    query = db.query(models.Registro).filter(
+        models.Registro.tenant_id == tenant_id,
+        models.Registro.timestamp_checada >= fecha_inicio,
+        models.Registro.timestamp_checada <= fecha_fin
+    )
+
+    if area_id:
+        query = query.join(models.Empleado).filter(models.Empleado.area_id == area_id)
+    elif current_user.rol == "MANAGER" and current_user.area_id:
+        query = query.join(models.Empleado).filter(models.Empleado.area_id == current_user.area_id)
+
+    registros = query.order_by(models.Registro.timestamp_checada.asc()).all()
+
+    result = []
+    for reg in registros:
+        result.append({
+            "empleado": reg.empleado.nombre_completo,
+            "id_reloj": reg.empleado.id_reloj,
+            "area": reg.empleado.area.nombre_area if reg.empleado.area else "N/A",
+            "puesto": reg.empleado.puesto or "N/A",
+            "fecha": reg.timestamp_checada.strftime("%Y-%m-%d"),
+            "hora": reg.timestamp_checada.strftime("%H:%M:%S"),
+            "tipo": "Entrada" if reg.tipo_registro == "0" else "Salida",
+            "dispositivo": reg.dispositivo_sn
+        })
+    return result
+
+@app.put("/api/empleados/{empleado_id}")
+def update_empleado(
+    empleado_id: uuid.UUID,
+    data: schemas.EmpleadoUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Permite editar un empleado (ROOT, ADMIN o RRHH).
+    """
+    if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
+        raise HTTPException(status_code=403, detail="No tienes permisos para editar empleados")
+        
+    empleado = db.query(models.Empleado).filter(models.Empleado.id == empleado_id).first()
+    if not empleado:
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
+
+    update_dict = data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        if key in ["nombre_completo", "puesto"] and value:
+            value = normalize_string(value)
+        setattr(empleado, key, value)
+
+    db.commit()
+    
+    # Encolar comando de actualización para el reloj si el nombre cambió
+    if "nombre_completo" in update_dict:
+        cmd = models.Comando(
+            dispositivo_sn=empleado.id_reloj, # Simplificado: usamos id_reloj como destino si no hay SN
+            comando=f"DATA USER PIN={empleado.id_reloj}\tName={empleado.nombre_completo}"
+        )
+        db.add(cmd)
+        db.commit()
+
+    return {"message": "Empleado actualizado"}
+
+@app.put("/api/registros/{registro_id}")
+def update_registro(
+    registro_id: uuid.UUID,
+    data: schemas.RegistroUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Permite editar una checada pasiva (SOLO ROOT).
+    """
+    if current_user.rol != "ROOT":
+        raise HTTPException(status_code=403, detail="SOLO ROOT puede editar registros de asistencia")
+        
+    registro = db.query(models.Registro).filter(models.Registro.id == registro_id).first()
+    if not registro:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(registro, key, value)
+
+    db.commit()
+    return {"message": "Registro actualizado exitosamente"}
+
+@app.put("/api/usuarios/{usuario_id}")
+def update_usuario(
+    usuario_id: uuid.UUID,
+    data: schemas.UsuarioUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Permite actualizar permisos y roles de usuarios (ROOT o ADMIN).
+    """
+    if current_user.rol not in ["ROOT", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Permisos insuficientes")
+        
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    update_data = data.model_dump(exclude_unset=True)
+    if "password" in update_data and update_data["password"]:
+        # Solo ROOT o el propio usuario pueden cambiar la contraseña
+        if current_user.rol != "ROOT" and str(current_user.id) != str(usuario_id):
+             raise HTTPException(status_code=403, detail="Solo ROOT puede resetear claves ajenas")
+        usuario.hashed_password = auth.get_password_hash(update_data.pop("password"))
+
+    for key, value in update_data.items():
+        setattr(usuario, key, value)
+
+    db.commit()
+    return {"message": "Usuario actualizado"}

@@ -68,6 +68,17 @@ export default function AreasView() {
     setShowModal(true);
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm('¿Estás seguro de eliminar esta área? No se podrá eliminar si tiene empleados vinculados.')) {
+      try {
+        await api.delete(`/areas/${id}`);
+        fetchData();
+      } catch (err) {
+        alert(err.response?.data?.detail || 'Error al eliminar el área');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -127,12 +138,20 @@ export default function AreasView() {
                       {area.correo_responsable || 'Sin correo'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <td className="px-6 py-4 whitespace-nowrap text-right flex justify-end space-x-2">
                     <button
                       onClick={() => startEdit(area)}
                       className="p-2 text-obsidian-500 hover:text-gold-500 hover:bg-gold-500/10 rounded transition-colors"
+                      title="Editar"
                     >
                       <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(area.id)}
+                      className="p-2 text-obsidian-500 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   </td>
                 </tr>

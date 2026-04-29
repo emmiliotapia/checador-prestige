@@ -20,9 +20,17 @@ def migrate():
         # Agregar columnas a empleados
         try:
             conn.execute(text("ALTER TABLE empleados ADD COLUMN IF NOT EXISTS horario_id UUID REFERENCES horarios(id)"))
-            print("Columna 'horario_id' añadida a 'empleados'.")
+            conn.execute(text("ALTER TABLE empleados ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE"))
+            print("Columnas 'horario_id' y 'activo' verificadas en 'empleados'.")
         except Exception as e:
             print(f"Error migrando 'empleados': {e}")
+        
+        # Agregar columnas a usuarios
+        try:
+            conn.execute(text("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos TEXT"))
+            print("Columna 'permisos' añadida a 'usuarios'.")
+        except Exception as e:
+            print(f"Error migrando 'usuarios': {e}")
         
         print("Migración finalizada.")
         conn.commit()

@@ -12,7 +12,7 @@ echo "Uploading files (deploy.tar.gz)..."
 scp deploy.tar.gz $DEST/deploy.tar.gz
 
 echo "Extracting and starting services on VPS..."
-ssh smartops "cd $REMOTE_DIR && tar -xzf deploy.tar.gz && rm deploy.tar.gz && docker-compose up -d --build"
+ssh smartops "cd $REMOTE_DIR && tar -xzf deploy.tar.gz && rm deploy.tar.gz && docker-compose up -d --build && sleep 5 && docker exec smartops_attendance_backend python migrate.py && docker exec smartops_attendance_backend python clean_data.py"
 
 echo "Cleaning up local files..."
 Remove-Item deploy.tar.gz

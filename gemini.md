@@ -16,6 +16,7 @@ Dependiendo de la tarea que el humano (Emilio/Aldo) te pida, revisa los siguient
 | :--- | :--- |
 | **Configuración de Dominio, SSL, Cloudflare o Nginx** | `docs/vps.md` (Contiene las reglas de Proxy Hosts y puertos exactos). |
 | **Diseño, Colores, UI/UX o Frontend** | `frontend/tailwind.config.js` (La marca usa colores "Gold & Obsidian". **Prohibido** usar colores por defecto de Tailwind). |
+| **Errores Conocidos y Soluciones (Memory)** | `docs/memory.md` (Historial de errores para evitar regresiones). |
 | **Conexión Biométrica (ADMS) o Parseo de Checadas** | `backend/app/main.py` (Ruta `/iclock/cdata`). |
 | **Base de Datos, Migraciones o Usuarios** | `backend/app/models.py` y `backend/seed.py` |
 

@@ -15,33 +15,118 @@ const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 function InicioView() {
   const [recentRecords, setRecentRecords] = useState([]);
+  const [stats, setStats] = useState({ asistencias_hoy: 0, retardos_hoy: 0, faltas_hoy: 0, empleados_totales: 0 });
+  const [areas, setAreas] = useState([]);
+  const [selectedArea, setSelectedArea] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sortConfig, setSortConfig] = useState({ key: 'timestamp_checada', direction: 'desc' });
 
   useEffect(() => {
-    const fetchRecent = async () => {
+    const fetchAreas = async () => {
       try {
-        const response = await api.get(`/registros/recientes`, {
-          params: { tenant_id: MOCK_TENANT_ID, limit: 10 }
-        });
-        setRecentRecords(response.data);
+        const res = await api.get(`/areas`, { params: { tenant_id: MOCK_TENANT_ID } });
+        setAreas(res.data);
       } catch (error) {
-        console.error("Error fetching recent records:", error);
+        console.error("Error fetching areas:", error);
+      }
+    };
+    fetchAreas();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const params = { tenant_id: MOCK_TENANT_ID };
+        if (selectedArea) params.area_id = selectedArea;
+
+        const [recordsRes, statsRes] = await Promise.all([
+          api.get(`/registros/recientes`, { params: { ...params, limit: 100 } }),
+          api.get(`/dashboard/stats`, { params: { ...params, fecha_hoy: today } })
+        ]);
+        setRecentRecords(recordsRes.data);
+        setStats(statsRes.data);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRecent();
-    const interval = setInterval(fetchRecent, 10000);
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedArea]);
+
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedRecords = [...recentRecords].sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const todayStr = format(new Date(), "eeee, d 'de' MMMM");
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+         <div>
+            <h2 className="text-2xl font-light text-obsidian-50 tracking-wide uppercase">Estado del <span className="font-bold text-gold-500">Casino</span></h2>
+            <p className="text-obsidian-400 text-sm font-medium capitalize">{todayStr}</p>
+         </div>
+         <div className="flex items-center gap-3 w-full md:w-auto">
+            <select 
+              value={selectedArea}
+              onChange={(e) => setSelectedArea(e.target.value)}
+              className="flex-1 md:w-64 px-4 py-2 bg-obsidian-900 border border-obsidian-800 rounded-lg text-gold-50 text-sm focus:ring-2 focus:ring-gold-500 outline-none transition-all uppercase font-bold tracking-tighter"
+            >
+              <option value="">Todas las Áreas</option>
+              {areas.map(a => (
+                <option key={a.id} value={a.id}>{a.nombre_area}</option>
+              ))}
+            </select>
+            <span className="text-xs font-bold text-gold-600 uppercase tracking-wider bg-gold-500/10 px-3 py-1.5 rounded-full border border-gold-500/20 animate-pulse whitespace-nowrap">En vivo</span>
+         </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-gold-600 to-gold-700 p-6 rounded-2xl text-white shadow-xl shadow-gold-100">
-          <p className="text-gold-100 text-sm font-medium uppercase tracking-wider">Asistencias Hoy</p>
-          <p className="text-4xl font-light mt-1">{recentRecords.length}</p>
+          <div className="flex justify-between items-start">
+            <p className="text-gold-100 text-sm font-medium uppercase tracking-wider">Asistencias Hoy</p>
+            <CheckCircle size={20} className="text-gold-200" />
+          </div>
+          <p className="text-4xl font-light mt-1">{stats.asistencias_hoy}</p>
+        </div>
+
+        <div className="bg-obsidian-900 border border-obsidian-800 p-6 rounded-2xl shadow-xl shadow-black/20">
+          <div className="flex justify-between items-start">
+            <p className="text-obsidian-400 text-sm font-medium uppercase tracking-wider">Retardos</p>
+            <Clock size={20} className="text-yellow-500" />
+          </div>
+          <p className="text-4xl font-light mt-1 text-yellow-500">{stats.retardos_hoy}</p>
+        </div>
+
+        <div className="bg-obsidian-900 border border-obsidian-800 p-6 rounded-2xl shadow-xl shadow-black/20">
+          <div className="flex justify-between items-start">
+            <p className="text-obsidian-400 text-sm font-medium uppercase tracking-wider">Faltas</p>
+            <AlertCircle size={20} className="text-red-500" />
+          </div>
+          <p className="text-4xl font-light mt-1 text-red-500">{stats.faltas_hoy}</p>
+        </div>
+
+        <div className="bg-obsidian-900 border border-obsidian-800 p-6 rounded-2xl shadow-xl shadow-black/20">
+          <div className="flex justify-between items-start">
+            <p className="text-obsidian-400 text-sm font-medium uppercase tracking-wider">Empleados Activos</p>
+            <Activity size={20} className="text-gold-500" />
+          </div>
+          <p className="text-4xl font-light mt-1 text-gold-500">{stats.empleados_totales}</p>
         </div>
       </div>
 
@@ -51,14 +136,23 @@ function InicioView() {
             <Activity className="text-gold-500" size={20} />
             <h3 className="text-lg font-bold text-obsidian-50 uppercase tracking-widest">Actividad Reciente</h3>
           </div>
-          <span className="text-xs font-bold text-gold-600 uppercase tracking-wider bg-gold-500/10 px-2 py-1 rounded">Actualización en vivo</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-obsidian-950/50 text-obsidian-400 text-xs uppercase tracking-wider font-bold">
               <tr>
-                <th className="px-6 py-4 border-b border-obsidian-800">Empleado</th>
-                <th className="px-6 py-4 border-b border-obsidian-800">Hora</th>
+                <th 
+                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
+                  onClick={() => handleSort('nombre_empleado')}
+                >
+                  Empleado {sortConfig.key === 'nombre_empleado' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th 
+                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
+                  onClick={() => handleSort('timestamp_checada')}
+                >
+                  Hora {sortConfig.key === 'timestamp_checada' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Tipo</th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Dispositivo</th>
               </tr>
@@ -68,8 +162,8 @@ function InicioView() {
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
                 </tr>
-              ) : recentRecords.length > 0 ? (
-                recentRecords.map((reg) => (
+              ) : sortedRecords.length > 0 ? (
+                sortedRecords.map((reg) => (
                   <tr key={reg.id} className="hover:bg-obsidian-800/50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-3">
@@ -141,13 +235,28 @@ function MainLayout() {
   };
 
   const renderView = () => {
+    // Verificar permisos si el usuario no es ROOT o ADMIN
+    const permisos = user.permisos ? JSON.parse(user.permisos) : null;
+    
+    // Función para validar acceso
+    const canAccess = (module) => {
+      if (user.rol === 'ROOT' || user.rol === 'ADMIN') return true;
+      if (!permisos) return false;
+      return permisos.includes(module);
+    };
+
     switch (view) {
       case 'inicio': return <InicioView />;
-      case 'empleados': return <DirectorioView />;
-      case 'reportes': return <ReportesView />;
-      case 'areas': return <AreasView />;
-      case 'horarios': return <HorariosView />;
-      case 'configuracion': return <ConfiguracionView />;
+      case 'empleados': 
+        return canAccess('empleados') ? <DirectorioView /> : <Navigate to="/" />;
+      case 'reportes': 
+        return canAccess('reportes') ? <ReportesView /> : <Navigate to="/" />;
+      case 'areas': 
+        return canAccess('areas') ? <AreasView /> : <Navigate to="/" />;
+      case 'horarios': 
+        return canAccess('horarios') ? <HorariosView /> : <Navigate to="/" />;
+      case 'configuracion': 
+        return canAccess('configuracion') ? <ConfiguracionView /> : <Navigate to="/" />;
       default: return <InicioView />;
     }
   };

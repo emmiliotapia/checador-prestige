@@ -14,10 +14,16 @@ export default function DirectorioView() {
   const [sortConfig, setSortConfig] = useState({ key: 'nombre_completo', direction: 'asc' });
   const itemsPerPage = 25;
 
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [horarios, setHorarios] = useState([]);
+  const [selectedArea, setSelectedArea] = useState('all');
+
   const [newEmployee, setNewEmployee] = useState({
     nombre_completo: '',
     id_reloj: '',
     area_id: '',
+    horario_id: '',
+    puesto: '',
     tenant_id: MOCK_TENANT_ID
   });
 
@@ -27,12 +33,14 @@ export default function DirectorioView() {
 
   const fetchData = async () => {
     try {
-      const [empRes, areaRes] = await Promise.all([
+      const [empRes, areaRes, horarioRes] = await Promise.all([
         api.get(`/empleados?tenant_id=${MOCK_TENANT_ID}`),
-        api.get(`/areas?tenant_id=${MOCK_TENANT_ID}`)
+        api.get(`/areas?tenant_id=${MOCK_TENANT_ID}`),
+        api.get(`/horarios?tenant_id=${MOCK_TENANT_ID}`)
       ]);
       setEmployees(empRes.data);
       setAreas(areaRes.data);
+      setHorarios(horarioRes.data);
     } catch (error) {
       console.error("Error al cargar datos:", error);
     } finally {
@@ -43,21 +51,37 @@ export default function DirectorioView() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post(`/empleados`, newEmployee);
+      if (editingEmployee) {
+        await api.put(`/empleados/${editingEmployee.id}`, editingEmployee);
+        setEditingEmployee(null);
+      } else {
+        await api.post(`/empleados`, newEmployee);
+      }
       setShowModal(false);
-      setNewEmployee({ nombre_completo: '', id_reloj: '', area_id: '', tenant_id: MOCK_TENANT_ID });
+      setNewEmployee({ nombre_completo: '', id_reloj: '', area_id: '', horario_id: '', puesto: '', tenant_id: MOCK_TENANT_ID });
       fetchData();
     } catch (error) {
       alert("Error al guardar empleado");
     }
   };
 
+  const toggleStatus = async (emp) => {
+    try {
+      await api.put(`/empleados/${emp.id}`, { activo: !emp.activo });
+      fetchData();
+    } catch (error) {
+      alert("Error al cambiar estatus");
+    }
+  };
+
   // --- LÓGICA DE BÚSQUEDA, FILTRADO Y ORDENAMIENTO ---
   
-  const filteredEmployees = employees.filter(emp => 
-    emp.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.id_reloj.includes(searchTerm)
-  );
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = emp.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         emp.id_reloj.includes(searchTerm);
+    const matchesArea = selectedArea === 'all' || emp.area_id === selectedArea;
+    return matchesSearch && matchesArea;
+  });
 
   const sortedEmployees = [...filteredEmployees].sort((a, b) => {
     let aValue = a[sortConfig.key];
@@ -136,6 +160,23 @@ export default function DirectorioView() {
               className="w-full pl-10 pr-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 placeholder-obsidian-600 focus:outline-none focus:ring-2 focus:ring-gold-500 transition-all"
             />
           </div>
+
+          <div className="flex items-center space-x-3 w-full md:w-auto">
+            <Building2 className="text-obsidian-500" size={18} />
+            <select 
+              className="bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 py-2 px-4 focus:outline-none focus:ring-2 focus:ring-gold-500 transition-all text-sm uppercase tracking-wider font-bold"
+              value={selectedArea}
+              onChange={(e) => {
+                setSelectedArea(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="all">TODAS LAS ÁREAS</option>
+              {areas.map(a => (
+                <option key={a.id} value={a.id}>{a.nombre_area}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex items-center space-x-2 text-obsidian-400 text-sm font-bold uppercase">
             <span>Página {currentPage} de {totalPages || 1}</span>
             <div className="flex space-x-1">
@@ -178,12 +219,8 @@ export default function DirectorioView() {
                 >
                   Área {sortConfig.key === 'area' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th 
-                  className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
-                  onClick={() => requestSort('puesto')}
-                >
-                  Puesto {sortConfig.key === 'puesto' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </th>
+                <th className="px-6 py-4 border-b border-obsidian-800">Horario</th>
+                <th className="px-6 py-4 border-b border-obsidian-800">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-obsidian-800">
@@ -191,10 +228,13 @@ export default function DirectorioView() {
                 <tr key={emp.id} className="hover:bg-obsidian-800/50 transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gold-500/10 text-gold-500 rounded-full flex items-center justify-center font-bold text-sm border border-gold-500/20">
+                      <div className={`w-10 h-10 ${emp.activo ? 'bg-gold-500/10 text-gold-500' : 'bg-red-500/10 text-red-500'} rounded-full flex items-center justify-center font-bold text-sm border ${emp.activo ? 'border-gold-500/20' : 'border-red-500/20'}`}>
                         {emp.nombre_completo.charAt(0)}
                       </div>
-                      <span className="font-bold text-obsidian-100 uppercase">{emp.nombre_completo}</span>
+                      <div>
+                        <span className={`font-bold uppercase ${emp.activo ? 'text-obsidian-100' : 'text-red-400 line-through'}`}>{emp.nombre_completo}</span>
+                        {!emp.activo && <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Inactivo (Baja)</p>}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -207,8 +247,27 @@ export default function DirectorioView() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-obsidian-400 text-sm uppercase">
-                      {emp.puesto || 'N/A'}
+                      {horarios.find(h => h.id === emp.horario_id)?.nombre || 'Sin Horario'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => {
+                          setEditingEmployee(emp);
+                          setShowModal(true);
+                        }}
+                        className="text-gold-500 hover:text-gold-400 text-xs font-bold uppercase tracking-wider"
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        onClick={() => toggleStatus(emp)}
+                        className={`${emp.activo ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400'} text-xs font-bold uppercase tracking-wider`}
+                      >
+                        {emp.activo ? 'Baja' : 'Reingreso'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )) : (
@@ -227,8 +286,8 @@ export default function DirectorioView() {
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-obsidian-900 rounded-2xl shadow-2xl border border-obsidian-800 w-full max-w-md p-8 animate-in fade-in zoom-in duration-200">
-            <h3 className="text-2xl font-light text-obsidian-50 tracking-wide uppercase mb-6">Nuevo <span className="font-bold text-gold-500">Empleado</span></h3>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <h3 className="text-2xl font-light text-obsidian-50 tracking-wide uppercase mb-6">{editingEmployee ? 'Editar' : 'Nuevo'} <span className="font-bold text-gold-500">Empleado</span></h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider">Nombre Completo</label>
                 <div className="relative">
@@ -237,46 +296,87 @@ export default function DirectorioView() {
                     required
                     type="text" 
                     className="w-full pl-10 pr-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all"
-                    value={newEmployee.nombre_completo}
-                    onChange={(e) => setNewEmployee({...newEmployee, nombre_completo: e.target.value})}
+                    value={editingEmployee ? editingEmployee.nombre_completo : newEmployee.nombre_completo}
+                    onChange={(e) => editingEmployee 
+                      ? setEditingEmployee({...editingEmployee, nombre_completo: e.target.value})
+                      : setNewEmployee({...newEmployee, nombre_completo: e.target.value})
+                    }
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider">ID Reloj Físico</label>
-                <div className="relative">
-                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-obsidian-500" size={18} />
-                  <input 
-                    required
-                    type="text" 
-                    placeholder="Ej: 1001"
-                    className="w-full pl-10 pr-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all"
-                    value={newEmployee.id_reloj}
-                    onChange={(e) => setNewEmployee({...newEmployee, id_reloj: e.target.value})}
-                  />
+
+              {!editingEmployee && (
+                <div>
+                  <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider">ID Reloj Físico</label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-obsidian-500" size={18} />
+                    <input 
+                      required
+                      type="text" 
+                      placeholder="Ej: 1001"
+                      className="w-full pl-10 pr-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all"
+                      value={newEmployee.id_reloj}
+                      onChange={(e) => setNewEmployee({...newEmployee, id_reloj: e.target.value})}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider">Área</label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-obsidian-500" size={18} />
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider text-xs">Área</label>
                   <select 
                     required
-                    className="w-full pl-10 pr-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all appearance-none"
-                    value={newEmployee.area_id}
-                    onChange={(e) => setNewEmployee({...newEmployee, area_id: e.target.value})}
+                    className="w-full px-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all text-sm"
+                    value={editingEmployee ? editingEmployee.area_id : newEmployee.area_id}
+                    onChange={(e) => editingEmployee
+                      ? setEditingEmployee({...editingEmployee, area_id: e.target.value})
+                      : setNewEmployee({...newEmployee, area_id: e.target.value})
+                    }
                   >
-                    <option value="" className="text-obsidian-500">Seleccionar área...</option>
+                    <option value="">Área...</option>
                     {areas.map(a => (
                       <option key={a.id} value={a.id}>{a.nombre_area}</option>
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider text-xs">Horario</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all text-sm"
+                    value={editingEmployee ? (editingEmployee.horario_id || '') : newEmployee.horario_id}
+                    onChange={(e) => editingEmployee
+                      ? setEditingEmployee({...editingEmployee, horario_id: e.target.value || null})
+                      : setNewEmployee({...newEmployee, horario_id: e.target.value})
+                    }
+                  >
+                    <option value="">Opcional...</option>
+                    {horarios.map(h => (
+                      <option key={h.id} value={h.id}>{h.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-obsidian-300 mb-2 uppercase tracking-wider text-xs">Puesto</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 focus:ring-2 focus:ring-gold-500 focus:outline-none transition-all"
+                  value={editingEmployee ? (editingEmployee.puesto || '') : newEmployee.puesto}
+                  onChange={(e) => editingEmployee
+                    ? setEditingEmployee({...editingEmployee, puesto: e.target.value})
+                    : setNewEmployee({...newEmployee, puesto: e.target.value})
+                  }
+                />
               </div>
               <div className="flex space-x-3 pt-6">
                 <button 
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingEmployee(null);
+                  }}
                   className="flex-1 px-4 py-3 border border-obsidian-700 rounded-lg text-obsidian-300 hover:bg-obsidian-800 transition-colors uppercase tracking-widest text-sm font-bold"
                 >
                   Cancelar

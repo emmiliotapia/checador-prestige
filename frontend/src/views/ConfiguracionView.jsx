@@ -22,8 +22,19 @@ export default function ConfiguracionView() {
     password: '',
     rol: 'RRHH',
     area_id: '',
+    permisos: [],
     tenant_id: MOCK_TENANT_ID
   });
+
+  const [editingUser, setEditingUser] = useState(null);
+
+  const AVAILABLE_MODULES = [
+    { id: 'empleados', label: 'Empleados' },
+    { id: 'reportes', label: 'Reportes' },
+    { id: 'areas', label: 'Áreas' },
+    { id: 'horarios', label: 'Horarios' },
+    { id: 'configuracion', label: 'Configuración' }
+  ];
 
   useEffect(() => {
     fetchData();
@@ -62,12 +73,38 @@ export default function ConfiguracionView() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/usuarios', newUser);
+      const payload = editingUser 
+        ? { ...editingUser, permisos: JSON.stringify(editingUser.permisos) }
+        : { ...newUser, permisos: JSON.stringify(newUser.permisos) };
+
+      if (editingUser) {
+        await api.put(`/usuarios/${editingUser.id}`, payload);
+        setEditingUser(null);
+      } else {
+        await api.post('/usuarios', payload);
+      }
+      
       setShowUserModal(false);
-      setNewUser({ email: '', password: '', rol: 'RRHH', area_id: '', tenant_id: MOCK_TENANT_ID });
+      setNewUser({ email: '', password: '', rol: 'RRHH', area_id: '', permisos: [], tenant_id: MOCK_TENANT_ID });
       fetchData();
     } catch (err) {
-      alert("Error al crear usuario");
+      alert("Error al guardar usuario");
+    }
+  };
+
+  const handleTogglePermiso = (moduleId) => {
+    if (editingUser) {
+      const current = editingUser.permisos || [];
+      const updated = current.includes(moduleId) 
+        ? current.filter(id => id !== moduleId) 
+        : [...current, moduleId];
+      setEditingUser({ ...editingUser, permisos: updated });
+    } else {
+      const current = newUser.permisos || [];
+      const updated = current.includes(moduleId) 
+        ? current.filter(id => id !== moduleId) 
+        : [...current, moduleId];
+      setNewUser({ ...newUser, permisos: updated });
     }
   };
 
@@ -189,6 +226,7 @@ export default function ConfiguracionView() {
                 <th className="px-8 py-4">Usuario / Email</th>
                 <th className="px-8 py-4">Rol</th>
                 <th className="px-8 py-4">Área Asignada</th>
+                <th className="px-8 py-4 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-obsidian-800">
@@ -211,6 +249,18 @@ export default function ConfiguracionView() {
                   </td>
                   <td className="px-8 py-4 text-obsidian-400 text-sm uppercase">
                     {areas.find(a => a.id === u.area_id)?.nombre_area || 'Acceso Total'}
+                  </td>
+                  <td className="px-8 py-4 text-right">
+                    <button 
+                      onClick={() => {
+                        const userPermisos = u.permisos ? JSON.parse(u.permisos) : [];
+                        setEditingUser({ ...u, permisos: userPermisos, password: '' });
+                        setShowUserModal(true);
+                      }}
+                      className="text-gold-500 hover:text-gold-400 font-bold text-xs uppercase tracking-widest mr-4"
+                    >
+                      Editar
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -257,23 +307,28 @@ export default function ConfiguracionView() {
                   <option value="MANAGER">MANAGER (Solo su área)</option>
                 </select>
               </div>
-              {newUser.rol === 'MANAGER' && (
                 <div>
-                  <label className="block text-xs font-bold text-obsidian-400 mb-1 uppercase tracking-widest">Área Asignada</label>
-                  <select 
-                    required
-                    className="w-full px-4 py-2 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 outline-none focus:ring-2 focus:ring-gold-500"
-                    value={newUser.area_id}
-                    onChange={e => setNewUser({...newUser, area_id: e.target.value})}
-                  >
-                    <option value="">Seleccionar área...</option>
-                    {areas.map(a => <option key={a.id} value={a.id}>{a.nombre_area}</option>)}
-                  </select>
+                  <label className="block text-xs font-bold text-obsidian-400 mb-2 uppercase tracking-widest">Permisos Modulares</label>
+                  <div className="grid grid-cols-2 gap-2 bg-obsidian-950 p-3 rounded-lg border border-obsidian-800">
+                    {AVAILABLE_MODULES.map(module => (
+                      <label key={module.id} className="flex items-center space-x-2 cursor-pointer group">
+                        <input 
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-obsidian-700 bg-obsidian-900 text-gold-500 focus:ring-gold-500"
+                          checked={editingUser 
+                            ? editingUser.permisos?.includes(module.id)
+                            : newUser.permisos?.includes(module.id)
+                          }
+                          onChange={() => handleTogglePermiso(module.id)}
+                        />
+                        <span className="text-xs text-obsidian-300 group-hover:text-gold-500 uppercase font-medium">{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              )}
               <div className="flex space-x-3 pt-4">
-                <button type="button" onClick={() => setShowUserModal(false)} className="flex-1 py-3 border border-obsidian-700 text-obsidian-400 rounded-lg font-bold uppercase text-xs tracking-widest">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-gold-500 text-obsidian-950 rounded-lg font-bold uppercase text-xs tracking-widest">Crear Usuario</button>
+                <button type="button" onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="flex-1 py-3 border border-obsidian-700 text-obsidian-400 rounded-lg font-bold uppercase text-xs tracking-widest">Cancelar</button>
+                <button type="submit" className="flex-1 py-3 bg-gold-500 text-obsidian-950 rounded-lg font-bold uppercase text-xs tracking-widest">{editingUser ? 'Guardar' : 'Crear Usuario'}</button>
               </div>
             </form>
           </div>

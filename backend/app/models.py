@@ -38,6 +38,7 @@ class Usuario(Base):
     hashed_password = Column(String, nullable=False)
     rol = Column(String, nullable=False) # 'ROOT', 'ADMIN', 'RRHH', 'MANAGER'
     area_id = Column(UUID(as_uuid=True), ForeignKey("areas.id"), nullable=True) # Para rol MANAGER
+    permisos = Column(Text, nullable=True) # JSON string con los módulos permitidos: ["empleados", "reportes", ...]
 
     tenant = relationship("Tenant")
     area = relationship("Area", back_populates="usuarios")
@@ -64,6 +65,7 @@ class Empleado(Base):
     id_reloj = Column(String, nullable=False) # ID físico en el dispositivo ZKTeco
     nombre_completo = Column(String, nullable=False)
     puesto = Column(String, nullable=True)
+    activo = Column(Boolean, default=True) # Si es False, el sistema ignora sus checadas (Baja lógica)
 
     tenant = relationship("Tenant", back_populates="empleados")
     area = relationship("Area", back_populates="empleados", foreign_keys=[area_id])

@@ -48,8 +48,16 @@ class EmpleadoBase(BaseModel):
 class EmpleadoCreate(EmpleadoBase):
     pass
 
+class EmpleadoUpdate(BaseModel):
+    nombre_completo: Optional[str] = None
+    area_id: Optional[uuid.UUID] = None
+    horario_id: Optional[uuid.UUID] = None
+    puesto: Optional[str] = None
+    activo: Optional[bool] = None
+
 class EmpleadoOut(EmpleadoBase):
     id: uuid.UUID
+    activo: bool
     model_config = ConfigDict(from_attributes=True)
 
 class RegistroOut(BaseModel):
@@ -60,6 +68,10 @@ class RegistroOut(BaseModel):
     empleado_id: uuid.UUID
     tenant_id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
+
+class RegistroUpdate(BaseModel):
+    timestamp_checada: Optional[datetime] = None
+    tipo_registro: Optional[str] = None
 
 class RegistroDetailOut(BaseModel):
     id: uuid.UUID
@@ -81,7 +93,14 @@ class UsuarioCreate(UsuarioBase):
 
 class UsuarioOut(UsuarioBase):
     id: uuid.UUID
+    permisos: Optional[str] = None # JSON string
     model_config = ConfigDict(from_attributes=True)
+
+class UsuarioUpdate(BaseModel):
+    rol: Optional[str] = None
+    area_id: Optional[uuid.UUID] = None
+    permisos: Optional[str] = None # JSON string
+    password: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
