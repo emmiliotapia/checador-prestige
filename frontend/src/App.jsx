@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import api from './api';
 import { format } from 'date-fns';
@@ -66,21 +66,27 @@ function InicioView() {
     setSortConfig({ key, direction });
   };
 
-  const sortedRecords = [...recentRecords].sort((a, b) => {
-    // Si estamos ordenando por tiempo, usar objetos Date para comparar correctamente
-    if (sortConfig.key === 'timestamp_checada') {
-      const dateA = new Date(a.timestamp_checada);
-      const dateB = new Date(b.timestamp_checada);
-      if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+  const sortedRecords = useMemo(() => {
+    return [...recentRecords].sort((a, b) => {
+      const key = sortConfig.key;
+      const direction = sortConfig.direction === 'asc' ? 1 : -1;
+
+      // Especial para fechas
+      if (key === 'timestamp_checada') {
+        const valA = new Date(a[key]).getTime();
+        const valB = new Date(b[key]).getTime();
+        return (valA - valB) * direction;
+      }
+
+      // Para otros campos
+      const valA = a[key]?.toString().toLowerCase() || '';
+      const valB = b[key]?.toString().toLowerCase() || '';
+      
+      if (valA < valB) return -1 * direction;
+      if (valA > valB) return 1 * direction;
       return 0;
-    }
-    
-    // Para otros campos (nombre), comparar como strings
-    if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-    if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-    return 0;
-  });
+    });
+  }, [recentRecords, sortConfig]);
 
   const todayStr = format(new Date(), "eeee, d 'de' MMMM");
 

@@ -2,7 +2,7 @@
 # Ver secrets.md para los valores de DEST y REMOTE_DIR
 $SSH_HOST = "smartops" 
 $REMOTE_PATH = "smartops-clients/casino-prestige/checador"
-$DEST = "$SSH_HOST:$REMOTE_PATH"
+$DEST = "${SSH_HOST}:${REMOTE_PATH}"
 
 echo "Compressing files (excluding node_modules)..."
 tar --exclude="frontend/node_modules" --exclude="frontend/dist" --exclude="backend/__pycache__" --exclude="backend/venv" -czf deploy.tar.gz backend frontend docker-compose.yml

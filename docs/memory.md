@@ -21,6 +21,15 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Contexto:** El build fallaba en el VPS.
 - **Causa:** Un bloque condicional de JSX quedó con una llave de cierre extra `)}` después de borrar la lógica de apertura.
 - **Solución:** Limpieza de sintaxis JSX. Se recomienda correr `npm run build` local antes de desplegar.
+### 🔴 Error: IDs de Empleados con decimales (Ej. `1001.0`)
+- **Contexto:** Al importar `bd_empleados.xlsx` usando pandas.
+- **Causa:** Pandas lee automáticamente columnas numéricas vacías (o enteras) como `float`, agregando `.0`.
+- **Solución:** Castear siempre el `id_reloj` eliminando decimales (ej. `str(row.iloc[0]).split('.')[0].strip()`) o usar `dtype={'id': str}` en `pd.read_excel`. Además, usar SQL `UPDATE empleados SET id_reloj = split_part(id_reloj, '.', 1);` para limpiar los datos corruptos.
+
+### 🔴 Error: Registros "Pegados" arriba en el Dashboard (Fechas del Futuro)
+- **Contexto:** Algunos registros antiguos aparecían siempre al principio, ignorando nuevas checadas.
+- **Causa:** El dispositivo biométrico tenía mal el año (ej. 2027) en el momento de la checada. Al ordenar por fecha descendente, el futuro siempre gana al presente.
+- **Solución:** Eliminar registros con fechas inválidas/futuras en la base de datos: `DELETE FROM registros WHERE timestamp_checada > '2026-12-31';` y corregir el reloj del hardware.
 
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
