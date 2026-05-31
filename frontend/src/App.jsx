@@ -20,6 +20,45 @@ function InicioView() {
   const [selectedArea, setSelectedArea] = useState('');
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'timestamp_checada', direction: 'desc' });
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [showRecordModal, setShowRecordModal] = useState(false);
+  const [recordForm, setRecordForm] = useState({ timestamp_checada: '', tipo_registro: '0' });
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isRoot = user.rol === 'ROOT';
+
+  const handleEditRecord = (reg) => {
+    setEditingRecord(reg);
+    // Parse timestamp safely to YYYY-MM-DDTHH:MM:SS format
+    const timeStr = reg.timestamp_checada ? reg.timestamp_checada.substring(0, 19) : '';
+    setRecordForm({
+      timestamp_checada: timeStr,
+      tipo_registro: reg.tipo_registro
+    });
+    setShowRecordModal(true);
+  };
+
+  const handleSaveRecord = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/registros/${editingRecord.id}`, recordForm);
+      setShowRecordModal(false);
+      setEditingRecord(null);
+      
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const params = { tenant_id: MOCK_TENANT_ID };
+      if (selectedArea) params.area_id = selectedArea;
+
+      const [recordsRes, statsRes] = await Promise.all([
+        api.get(`/registros/recientes`, { params: { ...params, limit: 100 } }),
+        api.get(`/dashboard/stats`, { params: { ...params, fecha_hoy: today } })
+      ]);
+      setRecentRecords(recordsRes.data);
+      setStats(statsRes.data);
+    } catch (error) {
+      alert("Error al actualizar la checada: " + (error.response?.data?.detail || error.message));
+    }
+  };
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -171,12 +210,13 @@ function InicioView() {
                 </th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Tipo</th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Dispositivo</th>
+                {isRoot && <th className="px-6 py-4 border-b border-obsidian-800 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-obsidian-800">
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
+                  <td colSpan={isRoot ? 5 : 4} className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
                 </tr>
               ) : sortedRecords.length > 0 ? (
                 sortedRecords.map((reg) => (
@@ -199,19 +239,33 @@ function InicioView() {
                       <span className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${
                         reg.tipo_registro === '0' 
                           ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : reg.tipo_registro === '1'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : reg.tipo_registro === '2'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                       }`}>
-                        {reg.tipo_registro === '0' ? 'Entrada' : 'Salida'}
+                        {reg.tipo_registro === '0' ? 'Entrada' : reg.tipo_registro === '1' ? 'Salida' : reg.tipo_registro === '2' ? 'Inicio Comida' : 'Fin Comida'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-obsidian-400 text-xs font-mono">
                       {reg.dispositivo_sn || 'N/A'}
                     </td>
+                    {isRoot && (
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button 
+                          onClick={() => handleEditRecord(reg)}
+                          className="text-gold-500 hover:text-gold-400 text-xs font-bold uppercase tracking-wider"
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 italic">
+                  <td colSpan={isRoot ? 5 : 4} className="px-6 py-12 text-center text-obsidian-500 italic">
                     No hay actividad reciente registrada.
                   </td>
                 </tr>
@@ -220,7 +274,78 @@ function InicioView() {
           </table>
         </div>
       </div>
+
+      {/* Modal Editar Checada (Solo para ROOT) */}
+      {showRecordModal && editingRecord && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-obsidian-900 rounded-2xl shadow-2xl border border-obsidian-800 w-full max-w-md p-8 animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-light text-obsidian-50 tracking-wide uppercase mb-6">
+              Editar <span className="font-bold text-gold-500">Checada</span>
+            </h3>
+            <form onSubmit={handleSaveRecord} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-obsidian-400 mb-1 uppercase tracking-widest">
+                  Empleado
+                </label>
+                <input 
+                  disabled
+                  type="text" 
+                  className="w-full px-4 py-2 bg-obsidian-950 border border-obsidian-800 rounded-lg text-obsidian-400 outline-none cursor-not-allowed uppercase"
+                  value={editingRecord.nombre_empleado}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-obsidian-400 mb-1 uppercase tracking-widest">
+                  Tipo de Registro
+                </label>
+                <select 
+                  className="w-full px-4 py-2 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 outline-none focus:ring-2 focus:ring-gold-500 font-bold text-sm uppercase"
+                  value={recordForm.tipo_registro}
+                  onChange={e => setRecordForm({...recordForm, tipo_registro: e.target.value})}
+                >
+                  <option value="0">Entrada</option>
+                  <option value="1">Salida</option>
+                  <option value="2">Inicio Comida</option>
+                  <option value="3">Fin Comida</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-obsidian-400 mb-1 uppercase tracking-widest">
+                  Fecha y Hora
+                </label>
+                <input 
+                  required
+                  type="datetime-local" 
+                  step="1"
+                  className="w-full px-4 py-2 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 outline-none focus:ring-2 focus:ring-gold-500 font-bold"
+                  value={recordForm.timestamp_checada}
+                  onChange={e => setRecordForm({...recordForm, timestamp_checada: e.target.value})}
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-6">
+                <button 
+                  type="button" 
+                  onClick={() => { setShowRecordModal(false); setEditingRecord(null); }} 
+                  className="flex-1 py-3 border border-obsidian-700 text-obsidian-400 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-obsidian-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 bg-gold-500 text-obsidian-950 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-gold-400 transition-colors shadow-lg shadow-gold-900/20"
+                >
+                  Guardar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }
 

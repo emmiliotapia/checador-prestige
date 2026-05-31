@@ -31,5 +31,10 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Causa:** El dispositivo biométrico tenía mal el año (ej. 2027) en el momento de la checada. Al ordenar por fecha descendente, el futuro siempre gana al presente.
 - **Solución:** Eliminar registros con fechas inválidas/futuras en la base de datos: `DELETE FROM registros WHERE timestamp_checada > '2026-12-31';` y corregir el reloj del hardware.
 
+### 🔴 Error: Falta de Segundos al Modificar Checada Manualmente (Solo ROOT)
+- **Contexto:** El usuario ROOT puede modificar registros de asistencia, pero el input de tiempo de la interfaz web no permitía ingresar segundos, afectando la precisión del cálculo de incidencias.
+- **Causa:** El input HTML para la hora en la interfaz web no tenía especificado el atributo `step="1"`, por lo que el navegador ocultaba el selector de segundos y limitaba la precisión a horas/minutos.
+- **Solución:** Agregar `step="1"` a los inputs de tipo `datetime-local` o `time` para forzar la visualización y envío de segundos en el dashboard.
+
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
