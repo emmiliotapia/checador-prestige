@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import api from './api';
 import { format } from 'date-fns';
-import { Activity, Clock, CheckCircle, AlertCircle, LogOut, Edit, Trash2 } from 'lucide-react';
+import { Activity, Clock, CheckCircle, AlertCircle, LogOut, Edit, Trash2, Search } from 'lucide-react';
 import DashboardLayout from './components/DashboardLayout';
 import DirectorioView from './views/DirectorioView';
 import ReportesView from './views/ReportesView';
@@ -20,6 +20,7 @@ function InicioView({ user }) {
   const [selectedArea, setSelectedArea] = useState('');
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'timestamp_checada', direction: 'desc' });
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Estados para edición de registros (Solo ROOT)
   const [showEditModal, setShowEditModal] = useState(false);
@@ -72,7 +73,16 @@ function InicioView({ user }) {
   };
 
   const sortedRecords = useMemo(() => {
-    return [...recentRecords].sort((a, b) => {
+    let filtered = recentRecords;
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      filtered = recentRecords.filter(r => 
+        r.nombre_empleado.toLowerCase().includes(lower) || 
+        (r.id_reloj && r.id_reloj.toString().includes(lower))
+      );
+    }
+
+    return [...filtered].sort((a, b) => {
       const key = sortConfig.key;
       const direction = sortConfig.direction === 'asc' ? 1 : -1;
 
@@ -91,7 +101,7 @@ function InicioView({ user }) {
       if (valA > valB) return 1 * direction;
       return 0;
     });
-  }, [recentRecords, sortConfig]);
+  }, [recentRecords, sortConfig, searchTerm]);
 
   const handleEditClick = (reg) => {
     setEditingRecord(reg);
@@ -188,10 +198,20 @@ function InicioView({ user }) {
       </div>
 
       <div className="bg-obsidian-900 rounded-2xl border border-obsidian-800 shadow-xl overflow-hidden">
-        <div className="p-6 border-b border-obsidian-800 bg-obsidian-950/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
+        <div className="p-6 border-b border-obsidian-800 bg-obsidian-950/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
             <Activity className="text-gold-500" size={20} />
             <h3 className="text-lg font-bold text-obsidian-50 uppercase tracking-widest">Actividad Reciente</h3>
+          </div>
+          <div className="w-full md:w-64 relative">
+             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-obsidian-500" size={16} />
+             <input 
+               type="text" 
+               placeholder="Buscar empleado..." 
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               className="w-full pl-10 pr-4 py-2 bg-obsidian-900 border border-obsidian-800 rounded-lg text-gold-50 text-sm focus:ring-2 focus:ring-gold-500 outline-none transition-all placeholder-obsidian-500"
+             />
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -208,17 +228,16 @@ function InicioView({ user }) {
                   className="px-6 py-4 border-b border-obsidian-800 cursor-pointer hover:text-gold-500 transition-colors"
                   onClick={() => handleSort('timestamp_checada')}
                 >
-                  Hora {sortConfig.key === 'timestamp_checada' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  Fecha y Hora {sortConfig.key === 'timestamp_checada' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Tipo</th>
-                <th className="px-6 py-4 border-b border-obsidian-800">Dispositivo</th>
                 {user.rol === 'ROOT' && <th className="px-6 py-4 border-b border-obsidian-800 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-obsidian-800">
               {loading ? (
                 <tr>
-                  <td colSpan={user.rol === 'ROOT' ? 5 : 4} className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
+                  <td colSpan={user.rol === 'ROOT' ? 4 : 3} className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
                 </tr>
               ) : sortedRecords.length > 0 ? (
                 sortedRecords.map((reg) => (
@@ -235,7 +254,10 @@ function InicioView({ user }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-obsidian-100 text-sm font-bold tracking-wider">
-                      {format(new Date(reg.timestamp_checada), 'HH:mm:ss')}
+                      <div className="flex flex-col">
+                        <span className="text-xs text-obsidian-400 font-mono">{format(new Date(reg.timestamp_checada), 'yyyy-MM-dd')}</span>
+                        <span>{format(new Date(reg.timestamp_checada), 'HH:mm:ss')}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${
@@ -249,9 +271,6 @@ function InicioView({ user }) {
                       }`}>
                         {reg.tipo_registro === '0' ? 'Entrada' : reg.tipo_registro === '1' ? 'Salida' : reg.tipo_registro === '2' ? 'Inicio Comida' : 'Fin Comida'}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-obsidian-400 text-xs font-mono">
-                      {reg.dispositivo_sn || 'N/A'}
                     </td>
                     {user.rol === 'ROOT' && (
                       <td className="px-6 py-4 text-right">
@@ -275,8 +294,8 @@ function InicioView({ user }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={user.rol === 'ROOT' ? 5 : 4} className="px-6 py-12 text-center text-obsidian-500 italic">
-                    No hay actividad reciente registrada.
+                  <td colSpan={user.rol === 'ROOT' ? 4 : 3} className="px-6 py-12 text-center text-obsidian-500 italic">
+                    No hay actividad reciente registrada o no coincide con tu búsqueda.
                   </td>
                 </tr>
               )}
