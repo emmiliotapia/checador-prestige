@@ -55,5 +55,10 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Causa:** El input HTML para la hora en la interfaz web no tenía especificado el atributo `step="1"`, por lo que el navegador ocultaba el selector de segundos y limitaba la precisión a horas/minutos.
 - **Solución:** Agregar `step="1"` a los inputs de tipo `datetime-local` o `time` para forzar la visualización y envío de segundos en el dashboard.
 
+### 🔴 Error: Turnos Nocturnos Agrupados Incorrectamente (Jornadas de 16+ hrs)
+- **Contexto:** Al generar el reporte de asistencia agrupado por día, los empleados con turno nocturno (ej. salida a las 02:00 AM) veían su checada de salida agrupada como la "Entrada" del nuevo día, rompiendo el cálculo de horas.
+- **Causa:** El sistema agrupaba estrictamente por la fecha calendario (`reg.timestamp_checada.date()`), provocando que la salida de madrugada cayera en un bloque distinto al de su entrada.
+- **Solución:** Se implementó una lógica de "Día Operativo" en `backend/app/main.py`. Si la hora de la checada es menor a las 06:00 AM, se le asigna operativamente a la fecha del día anterior (`fecha - 1 día`), cerrando correctamente los turnos nocturnos.
+
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
