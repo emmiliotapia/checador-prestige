@@ -545,10 +545,16 @@ def exportar_reporte_detallado(
 
     registros = query.order_by(models.Registro.timestamp_checada.asc()).all()
 
-    # Agrupar por (empleado_id, fecha_local)
+    # Agrupar por (empleado_id, fecha_operativa)
+    # Día Operativo: Un día inicia a las 06:00 AM. Checadas de madrugada pertenecen al día anterior.
     agrupados = defaultdict(list)
+    from datetime import timedelta, time
     for reg in registros:
-        key = (reg.empleado_id, reg.timestamp_checada.date())
+        fecha_operativa = reg.timestamp_checada.date()
+        if reg.timestamp_checada.time() < time(6, 0):
+            fecha_operativa -= timedelta(days=1)
+            
+        key = (reg.empleado_id, fecha_operativa)
         agrupados[key].append(reg)
 
     result = []
