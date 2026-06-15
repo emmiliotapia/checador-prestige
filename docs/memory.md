@@ -30,6 +30,25 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Contexto:** Algunos registros antiguos aparecían siempre al principio, ignorando nuevas checadas.
 - **Causa:** El dispositivo biométrico tenía mal el año (ej. 2027) en el momento de la checada. Al ordenar por fecha descendente, el futuro siempre gana al presente.
 - **Solución:** Eliminar registros con fechas inválidas/futuras en la base de datos: `DELETE FROM registros WHERE timestamp_checada > '2026-12-31';` y corregir el reloj del hardware.
++
+### 🔴 Error: Roles RRHH/ADMIN sin acceso a módulos (Modular Permissions)
+- **Contexto:** Al crear usuarios con rol RRHH o ADMIN, no podían acceder a nada más que al Inicio.
+- **Causa:** La lógica de `canAccess` en el frontend era demasiado restrictiva y no manejaba correctamente los casos donde el array de `permisos` estaba vacío o era nulo para roles administrativos.
+- **Solución:** Se actualizó `App.jsx` y `DashboardLayout.jsx` para permitir acceso total a `ADMIN`/`RRHH` por defecto, a menos que se especifiquen permisos modulares explícitos. El rol `ROOT` ahora es el único con capacidad de edición de checadas.
+
+### 🔴 Error: Partidas Dobles y Áreas Duplicadas (Casing)
+- **Contexto:** Se generaban múltiples áreas (ej. "Sistemas" y "sistemas") y empleados duplicados por errores de dedo.
+- **Causa:** Falta de normalización de texto y ausencia de restricciones de unicidad en `id_reloj` y `nombre_area`.
+- **Solución:** Se implementó una normalización forzada a **MAYÚSCULAS** en el backend. Se agregaron validaciones de existencia previa antes de crear/editar empleados o áreas. Además, se habilitó el **Borrado Físico** para el usuario `ROOT` para permitir la limpieza manual de datos históricos corruptos.
+### 🔴 Error: No se podían eliminar registros de asistencia
+- **Contexto:** El usuario ROOT solo podía editar checadas, pero no eliminarlas cuando eran duplicadas o erróneas.
+- **Solución:** Se creó el endpoint `DELETE /api/registros/{id}` restringido a ROOT y se añadió el botón correspondiente en la UI del Dashboard.
+
+### 🔴 Error: Reloj ZKTeco ignora comandos de usuarios nuevos (Sincronización ADMS)
+- **Contexto:** Los usuarios creados/editados en el panel web no aparecían en la pantalla del checador. El sistema generaba los comandos en la base de datos pero el reloj los descartaba.
+- **Causa 1 (Sintaxis y Formato):** El reloj biométrico esperaba el comando limpio `DATA UPDATE USERINFO PIN=XX Name=YY Pri=0`. El sistema enviaba campos vacíos `Pass=\tCard=` que rompían el parseo interno del equipo.
+- **Causa 2 (Protocolo de ID estricto):** La base de datos generaba IDs de tipo `UUID` (`c9ab3be3...`) para encolar los comandos, pero el firmware ADMS antiguo del reloj solo es capaz de leer números enteros (ej. `C:1:DATA...`). El reloj recibía el comando pero no lo entendía ni lo reportaba.
+- **Solución:** Se cambió la columna `id` de la tabla `comandos` a un `Integer` auto-incremental. Se limpió la sintaxis omitiendo campos vacíos. Se configuró `/iclock/devicecmd` para marcar como ejecutados los comandos defectuvosos y evitar un bucle de envíos. Adicionalmente, se forzó `CmdInterval=15` en el handshake de `/iclock/cdata` para asegurar que el reloj consulte pendientes frecuentemente.
 
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*

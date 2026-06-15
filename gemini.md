@@ -6,6 +6,10 @@
 Este es el sistema **Checador Prestige**, un webhook ADMS para dispositivos biométricos ZKTeco y un panel web de administración.
 - **Backend:** FastAPI (Python) + PostgreSQL. (Ver `secrets.md` para puertos).
 - **Frontend:** React + Vite + Tailwind CSS. (Ver `secrets.md` para puertos).
+- **Sistema de Permisos:** Modular y jerárquico. 
+    - `ROOT`: Acceso total y único con permiso para editar registros de asistencia.
+    - `ADMIN`/`RRHH`: Acceso total por defecto, pero restringible mediante la columna `permisos` (JSON) en la base de datos.
+    - `Otros (MANAGER)`: Acceso restringido estrictamente a los módulos definidos en su JSON de permisos.
 - **Servidor (VPS):** Ubuntu Server con Docker Compose y Nginx Proxy Manager (NPM).
 
 ## 🗺️ 2. Enrutador de Documentación (¿Qué vas a hacer?)
@@ -54,6 +58,14 @@ Para evitar romper el sistema de nuevo, ten en cuenta estos antecedentes histór
 1. **Despliegues Empaquetados:** **NUNCA** ejecutes reconstrucciones del VPS por cada pequeño cambio. Agrupa todas tus modificaciones en Backend, Frontend y scripts, y realiza un **único despliegue final** llamando a `deploy.ps1`. El tiempo y los tokens del usuario son valiosos.
 2. **Sincronización de Base de Datos:** Si alteras un modelo en `models.py` (ej. agregar `puesto`), recuerda que `Base.metadata.create_all` no altera tablas existentes. Debes inyectar sentencias SQL directas (Ej. `ALTER TABLE`) en los scripts de migración o en tu propio script de inyección (como `importar_empleados.py`).
 3. **Módulos Frontend:** Cualquier nueva vista (Ej. Gestión de Áreas) debe respetar fielmente el diseño "Gold & Obsidian" y las paletas definidas en Tailwind. 
+
+## 💎 5. Reglas de Oro de Datos (Integridad)
+
+1. **Mayúsculas Automáticas:** Todas las entradas de texto (Nombres de empleados, áreas, puestos) se normalizan a **MAYÚSCULAS** en el backend para evitar duplicados por casing.
+2. **Unicidad:** 
+    - El `id_reloj` de un empleado debe ser único por Casino (Tenant).
+    - El nombre de un área debe ser único por Casino.
+3. **Borrado Físico (ROOT):** Solo el usuario `ROOT` tiene permiso para eliminar permanentemente empleados y registros. El borrado de un empleado elimina en cascada todos sus registros de asistencia para limpiar duplicados históricos.
 
 ---
 *Nota para la IA: Actúa siempre como un desarrollador Senior. Eres "Dios" en este repositorio, pero respeta estrictamente estas reglas.*

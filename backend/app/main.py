@@ -25,12 +25,12 @@ def normalize_string(s: str) -> str:
     # Filtrar solo caracteres que no sean acentos, pero permitir la Ñ (que es U+0303 en NFD)
     # En NFD, la Ñ es 'N' + COMBINING TILDE (U+0303). 
     # La ñ es 'n' + COMBINING TILDE.
-    # Vamos a reconstruir permitiendo solo los caracteres deseados.
+    # Vamos a reconstruir permitiendo solo los caracteres deseados y pasar a MAYÚSCULAS.
     result = ""
     for char in normalized:
         if unicodedata.category(char) != 'Mn' or char == '\u0303':
             result += char
-    return unicodedata.normalize('NFC', result)
+    return unicodedata.normalize('NFC', result).upper()
 
 app.include_router(bridge.router)
 
@@ -62,7 +62,6 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
     Maneja el saludo inicial (GET) y el envío de registros (POST).
     """
     if request.method == "GET":
-        # Respuesta de handshake esperada por el dispositivo
         response_text = (
             "Registry=OK\n"
             "GET OPTION FROM: 1\n"
@@ -73,6 +72,8 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
             "Delay=30\n"
             "TransTimes=00:00;14:00\n"
             "TransInterval=1\n"
+            "CmdInterval=15\n"
+            "Realtime=1\n"
         )
         return PlainTextResponse(response_text)
 
@@ -132,7 +133,7 @@ async def get_request(sn: str, db: Session = Depends(get_db)):
     El dispositivo pregunta si hay comandos pendientes.
     """
     comandos = db.query(models.Comando).filter(
-        models.Comando.dispositivo_sn == sn,
+        (models.Comando.dispositivo_sn == sn) | (models.Comando.dispositivo_sn == "TODOS"),
         models.Comando.ejecutado == False
     ).all()
     
@@ -155,16 +156,17 @@ async def device_cmd(request: Request, db: Session = Depends(get_db)):
     body_text = body.decode("utf-8")
     # Formato: ID=cmd_id&Return=0 (0 es éxito)
     lines = body_text.strip().split("\n")
+    import urllib.parse
     for line in lines:
-        if "ID=" in line:
-            parts = line.split("&")
-            cmd_id = parts[0].split("=")[1]
-            ret_code = parts[1].split("=")[1]
-            
-            if ret_code == "0":
+        parsed = urllib.parse.parse_qs(line.strip())
+        if "ID" in parsed:
+            try:
+                cmd_id = int(parsed["ID"][0])
                 comando = db.query(models.Comando).filter(models.Comando.id == cmd_id).first()
                 if comando:
                     comando.ejecutado = True
+            except Exception as e:
+                print(f"Error parsing devicecmd ID: {e}")
     
     db.commit()
     return PlainTextResponse("OK\n")
@@ -198,6 +200,14 @@ def create_empleado(
     db_empleado.nombre_completo = normalize_string(db_empleado.nombre_completo)
     if db_empleado.puesto:
         db_empleado.puesto = normalize_string(db_empleado.puesto)
+    
+    # Evitar duplicados por ID de Reloj
+    exists = db.query(models.Empleado).filter(
+        models.Empleado.tenant_id == empleado.tenant_id,
+        models.Empleado.id_reloj == db_empleado.id_reloj
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail=f"Ya existe un empleado con el ID de reloj {db_empleado.id_reloj}")
         
     db.add(db_empleado)
     db.commit()
@@ -208,7 +218,7 @@ def create_empleado(
     # En un sistema real, buscaríamos los dispositivos del tenant
     nuevo_comando = models.Comando(
         dispositivo_sn="TODOS", # O un SN específico
-        comando=f"DATA USER PIN={db_empleado.id_reloj}\tName={db_empleado.nombre_completo}\tPri=0\tPass=\tCard="
+        comando=f"DATA UPDATE USERINFO PIN={db_empleado.id_reloj}\tName={db_empleado.nombre_completo}\tPri=0"
     )
     db.add(nuevo_comando)
     db.commit()
@@ -229,6 +239,15 @@ def create_area(
         raise HTTPException(status_code=403, detail="No autorizado")
     db_area = models.Area(**area.dict())
     db_area.nombre_area = normalize_string(db_area.nombre_area)
+    
+    # Evitar duplicados por nombre
+    exists = db.query(models.Area).filter(
+        models.Area.tenant_id == area.tenant_id,
+        models.Area.nombre_area == db_area.nombre_area
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Ya existe un área con ese nombre")
+
     db.add(db_area)
     db.commit()
     db.refresh(db_area)
@@ -249,7 +268,16 @@ def update_area(
         raise HTTPException(status_code=404, detail="Area no encontrada")
         
     if area_update.nombre_area:
-        db_area.nombre_area = normalize_string(area_update.nombre_area)
+        nombre_norm = normalize_string(area_update.nombre_area)
+        # Verificar que no exista otra área con ese nombre (excepto esta misma)
+        exists = db.query(models.Area).filter(
+            models.Area.tenant_id == db_area.tenant_id,
+            models.Area.nombre_area == nombre_norm,
+            models.Area.id != area_id
+        ).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="Ya existe otra área con ese nombre")
+        db_area.nombre_area = nombre_norm
     if area_update.correo_responsable:
         db_area.correo_responsable = area_update.correo_responsable
     if area_update.encargado_id:
@@ -488,19 +516,28 @@ def exportar_reporte_detallado(
     fecha_inicio: datetime,
     fecha_fin: datetime,
     area_id: Optional[uuid.UUID] = None,
+    empleado_id: Optional[uuid.UUID] = None,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     """
     Genera los datos enriquecidos para la exportación CSV.
-    Separa fecha y hora, e incluye área y puesto.
+    Agrupa checadas por empleado y día para deducir inteligentemente
+    Entrada, Salida a Comer, Regreso, y Salida.
     """
+    from collections import defaultdict
+    
     query = db.query(models.Registro).filter(
         models.Registro.tenant_id == tenant_id,
         models.Registro.timestamp_checada >= fecha_inicio,
         models.Registro.timestamp_checada <= fecha_fin
     )
 
+    # Filtrar por empleado específico si se provee
+    if empleado_id:
+        query = query.filter(models.Registro.empleado_id == empleado_id)
+
+    # Filtros de área
     if area_id:
         query = query.join(models.Empleado).filter(models.Empleado.area_id == area_id)
     elif current_user.rol == "MANAGER" and current_user.area_id:
@@ -508,18 +545,56 @@ def exportar_reporte_detallado(
 
     registros = query.order_by(models.Registro.timestamp_checada.asc()).all()
 
-    result = []
+    # Agrupar por (empleado_id, fecha_local)
+    agrupados = defaultdict(list)
     for reg in registros:
-        result.append({
-            "empleado": reg.empleado.nombre_completo,
-            "id_reloj": reg.empleado.id_reloj,
-            "area": reg.empleado.area.nombre_area if reg.empleado.area else "N/A",
-            "puesto": reg.empleado.puesto or "N/A",
-            "fecha": reg.timestamp_checada.strftime("%Y-%m-%d"),
-            "hora": reg.timestamp_checada.strftime("%H:%M:%S"),
-            "tipo": "Entrada" if reg.tipo_registro == "0" else "Salida",
-            "dispositivo": reg.dispositivo_sn
-        })
+        key = (reg.empleado_id, reg.timestamp_checada.date())
+        agrupados[key].append(reg)
+
+    result = []
+    for (emp_id, fecha), daily_regs in agrupados.items():
+        count = len(daily_regs)
+        
+        for i, reg in enumerate(daily_regs):
+            tipo = "Desconocido"
+            
+            if count == 1:
+                tipo = "Entrada"
+            elif count == 2:
+                if i == 0:
+                    tipo = "Entrada"
+                else:
+                    # Diferencia en horas entre la 1ra y 2da checada
+                    diff = daily_regs[1].timestamp_checada - daily_regs[0].timestamp_checada
+                    if diff.total_seconds() >= 7.5 * 3600:
+                        tipo = "Salida"
+                    else:
+                        tipo = "Salida a Comer"
+            elif count == 3:
+                if i == 0: tipo = "Entrada"
+                elif i == 1: tipo = "Salida a Comer"
+                elif i == 2: tipo = "Regreso de Comer"
+            elif count >= 4:
+                if i == 0: tipo = "Entrada"
+                elif i == 1: tipo = "Salida a Comer"
+                elif i == 2: tipo = "Regreso de Comer"
+                elif i == 3: tipo = "Salida"
+                else: tipo = "Checada Adicional"
+                
+            result.append({
+                "empleado": reg.empleado.nombre_completo,
+                "id_reloj": reg.empleado.id_reloj,
+                "area": reg.empleado.area.nombre_area if reg.empleado.area else "N/A",
+                "puesto": reg.empleado.puesto or "N/A",
+                "fecha": reg.timestamp_checada.strftime("%Y-%m-%d"),
+                "hora": reg.timestamp_checada.strftime("%H:%M:%S"),
+                "tipo": tipo,
+                "dispositivo": reg.dispositivo_sn
+            })
+            
+    # Ordenar finalmente por fecha y hora cronológicamente
+    result.sort(key=lambda x: (x["fecha"], x["hora"]))
+    
     return result
 
 @app.put("/api/empleados/{empleado_id}")
@@ -540,6 +615,17 @@ def update_empleado(
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
 
     update_dict = data.model_dump(exclude_unset=True)
+    
+    # Si se intenta cambiar el id_reloj, verificar que no esté duplicado
+    if "id_reloj" in update_dict:
+        exists = db.query(models.Empleado).filter(
+            models.Empleado.tenant_id == empleado.tenant_id,
+            models.Empleado.id_reloj == update_dict["id_reloj"],
+            models.Empleado.id != empleado_id
+        ).first()
+        if exists:
+            raise HTTPException(status_code=400, detail=f"Ya existe otro empleado con el ID de reloj {update_dict['id_reloj']}")
+
     for key, value in update_dict.items():
         if key in ["nombre_completo", "puesto"] and value:
             value = normalize_string(value)
@@ -550,8 +636,8 @@ def update_empleado(
     # Encolar comando de actualización para el reloj si el nombre cambió
     if "nombre_completo" in update_dict:
         cmd = models.Comando(
-            dispositivo_sn=empleado.id_reloj, # Simplificado: usamos id_reloj como destino si no hay SN
-            comando=f"DATA USER PIN={empleado.id_reloj}\tName={empleado.nombre_completo}"
+            dispositivo_sn="TODOS",
+            comando=f"DATA UPDATE USERINFO PIN={empleado.id_reloj}\tName={empleado.nombre_completo}\tPri=0"
         )
         db.add(cmd)
         db.commit()
@@ -580,6 +666,50 @@ def update_registro(
 
     db.commit()
     return {"message": "Registro actualizado exitosamente"}
+
+@app.delete("/api/registros/{registro_id}")
+def delete_registro(
+    registro_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Permite eliminar una checada (SOLO ROOT).
+    """
+    if current_user.rol != "ROOT":
+        raise HTTPException(status_code=403, detail="SOLO ROOT puede eliminar registros de asistencia")
+        
+    registro = db.query(models.Registro).filter(models.Registro.id == registro_id).first()
+    if not registro:
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+
+    db.delete(registro)
+    db.commit()
+    return {"message": "Registro eliminado exitosamente"}
+
+@app.delete("/api/empleados/{empleado_id}")
+def delete_empleado(
+    empleado_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Permite eliminar físicamente un empleado (SOLO ROOT).
+    """
+    if current_user.rol != "ROOT":
+        raise HTTPException(status_code=403, detail="SOLO ROOT puede eliminar empleados")
+        
+    empleado = db.query(models.Empleado).filter(models.Empleado.id == empleado_id).first()
+    if not empleado:
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
+
+    # Al eliminar al empleado, sus registros quedarán huérfanos o darán error si hay FK restrict
+    # En este sistema eliminaremos también sus registros para limpiar "partidas dobles"
+    db.query(models.Registro).filter(models.Registro.empleado_id == empleado_id).delete()
+    
+    db.delete(empleado)
+    db.commit()
+    return {"message": "Empleado y sus registros eliminados"}
 
 @app.put("/api/usuarios/{usuario_id}")
 def update_usuario(

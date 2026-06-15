@@ -82,7 +82,7 @@ async def receive_data(request: Request):
 async def get_request(sn: str, db = Depends(lambda: SessionLocal())):
     """El reloj pide comandos. Servimos lo que tengamos en el cache local."""
     comandos = db.query(CommandCache).filter(
-        CommandCache.dispositivo_sn == sn,
+        (CommandCache.dispositivo_sn == sn) | (CommandCache.dispositivo_sn == "TODOS"),
         CommandCache.ejecutado == 0
     ).all()
     
@@ -107,10 +107,9 @@ async def device_cmd(request: Request, db = Depends(lambda: SessionLocal())):
             cmd_id = parts[0].split("=")[1]
             ret_code = parts[1].split("=")[1]
             
-            if ret_code == "0":
-                comando = db.query(CommandCache).filter(CommandCache.id == cmd_id).first()
-                if comando:
-                    comando.ejecutado = 1
+            comando = db.query(CommandCache).filter(CommandCache.id == cmd_id).first()
+            if comando:
+                comando.ejecutado = 1
     db.commit()
     return PlainTextResponse("OK\n")
 
@@ -131,13 +130,44 @@ def sync_worker():
                         db.commit()
                 except: break
 
-            # 2. TRAER COMANDOS DEL VPS (Sync de "TODOS" los dispositivos)
-            # Nota: El bridge debe saber qué SNs tiene conectados. Por ahora simplificamos.
-            try:
-                # Aquí asumimos un endpoint o simplemente pedimos comandos para SNs comunes
-                # En un entorno real, el bridge podría reportar qué SNs ve localmente.
-                pass
-            except: pass
+            # 2. TRAER COMANDOS DEL VPS
+            # El bridge pide comandos al VPS actuando como si fuera el reloj
+            # Necesitamos saber el SN del reloj. Lo ideal es que el bridge guarde los SNs que ve.
+            # Por ahora, intentaremos traer comandos si tenemos algún SN registrado en el caché.
+            sns = [res[0] for res in db.query(PayloadCache.query_string).all()]
+            # Extraer SN de los query strings (formato SN=XXXX)
+            sn_list = set()
+            for qs in sns:
+                import urllib.parse
+                parsed = urllib.parse.parse_qs(qs)
+                if 'SN' in parsed:
+                    sn_list.add(parsed['SN'][0])
+            
+            # Si no hay nada en cache, al menos intentamos con "BRIDGE" o pedimos genéricos
+            if not sn_list: sn_list.add("BRIDGE_SYNC")
+
+            for sn_val in sn_list:
+                try:
+                    res = requests.get(f"{VPS_URL}/iclock/getrequest?sn={sn_val}", timeout=10)
+                    if res.status_code == 200 and res.text.strip() != "OK":
+                        # Parsear comandos C:ID:CMD
+                        lines = res.text.strip().split("\n")
+                        for line in lines:
+                            if line.startswith("C:"):
+                                parts = line.split(":")
+                                cmd_id = parts[1]
+                                cmd_content = ":".join(parts[2:])
+                                # Guardar en cache local si no existe
+                                exists = db.query(CommandCache).filter(CommandCache.id == cmd_id).first()
+                                if not exists:
+                                    new_cmd = CommandCache(
+                                        id=cmd_id,
+                                        dispositivo_sn="TODOS", # Forzar TODOS para que cualquier reloj físico local lo ejecute
+                                        comando=cmd_content
+                                    )
+                                    db.add(new_cmd)
+                        db.commit()
+                except: pass
 
             # 3. REPORTAR COMANDOS EJECUTADOS AL VPS
             ejecutados = db.query(CommandCache).filter(CommandCache.ejecutado == 1).all()

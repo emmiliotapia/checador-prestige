@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, User, CreditCard, Building2 } from 'lucide-react';
+import { Plus, Search, User, CreditCard, Building2, Trash2 } from 'lucide-react';
 import api from '../api';
 
 const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
-export default function DirectorioView() {
+export default function DirectorioView({ user }) {
   const [employees, setEmployees] = useState([]);
   const [areas, setAreas] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -71,6 +71,17 @@ export default function DirectorioView() {
       fetchData();
     } catch (error) {
       alert("Error al cambiar estatus");
+    }
+  };
+
+  const handleDelete = async (emp) => {
+    if (window.confirm(`¿Estás SEGURO de borrar a ${emp.nombre_completo}? Esto también eliminará todas sus checadas. Esta acción no se puede deshacer.`)) {
+      try {
+        await api.delete(`/empleados/${emp.id}`);
+        fetchData();
+      } catch (error) {
+        alert("Error al eliminar empleado");
+      }
     }
   };
 
@@ -267,6 +278,15 @@ export default function DirectorioView() {
                       >
                         {emp.activo ? 'Baja' : 'Reingreso'}
                       </button>
+                      {user?.rol === 'ROOT' && (
+                        <button 
+                          onClick={() => handleDelete(emp)}
+                          className="text-red-600 hover:text-red-400 p-1"
+                          title="Eliminar permanentemente"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

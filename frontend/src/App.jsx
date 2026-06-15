@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import api from './api';
 import { format } from 'date-fns';
-import { Activity, Clock, CheckCircle, AlertCircle, LogOut } from 'lucide-react';
+import { Activity, Clock, CheckCircle, AlertCircle, LogOut, Edit, Trash2 } from 'lucide-react';
 import DashboardLayout from './components/DashboardLayout';
 import DirectorioView from './views/DirectorioView';
 import ReportesView from './views/ReportesView';
@@ -13,13 +13,18 @@ import HorariosView from './views/HorariosView';
 
 const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
-function InicioView() {
+function InicioView({ user }) {
   const [recentRecords, setRecentRecords] = useState([]);
   const [stats, setStats] = useState({ asistencias_hoy: 0, retardos_hoy: 0, faltas_hoy: 0, empleados_totales: 0 });
   const [areas, setAreas] = useState([]);
   const [selectedArea, setSelectedArea] = useState('');
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'timestamp_checada', direction: 'desc' });
+
+  // Estados para edición de registros (Solo ROOT)
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [editData, setEditData] = useState({ timestamp: '', tipo: '' });
 
   useEffect(() => {
     const fetchAreas = async () => {
@@ -87,6 +92,41 @@ function InicioView() {
       return 0;
     });
   }, [recentRecords, sortConfig]);
+
+  const handleEditClick = (reg) => {
+    setEditingRecord(reg);
+    // Format timestamp for datetime-local input
+    const date = new Date(reg.timestamp_checada);
+    const formattedDate = date.toISOString().slice(0, 16);
+    setEditData({ timestamp: formattedDate, tipo: reg.tipo_registro });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/registros/${editingRecord.id}`, {
+        timestamp_checada: editData.timestamp,
+        tipo_registro: editData.tipo
+      });
+      setShowEditModal(false);
+      // Refresh data
+      window.location.reload(); // Quick refresh or re-fetch
+    } catch (error) {
+      alert("Error al editar registro");
+    }
+  };
+
+  const handleDeleteRecord = async (reg) => {
+    if (window.confirm(`¿Seguro que quieres eliminar la checada de ${reg.nombre_empleado}?`)) {
+      try {
+        await api.delete(`/registros/${reg.id}`);
+        window.location.reload();
+      } catch (error) {
+        alert("Error al eliminar registro");
+      }
+    }
+  };
 
   const todayStr = format(new Date(), "eeee, d 'de' MMMM");
 
@@ -171,6 +211,7 @@ function InicioView() {
                 </th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Tipo</th>
                 <th className="px-6 py-4 border-b border-obsidian-800">Dispositivo</th>
+                {user.rol === 'ROOT' && <th className="px-6 py-4 border-b border-obsidian-800 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-obsidian-800">
@@ -207,6 +248,24 @@ function InicioView() {
                     <td className="px-6 py-4 text-obsidian-400 text-xs font-mono">
                       {reg.dispositivo_sn || 'N/A'}
                     </td>
+                    {user.rol === 'ROOT' && (
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => handleEditClick(reg)}
+                          className="p-2 bg-obsidian-800 text-gold-500 rounded-lg hover:bg-gold-500 hover:text-obsidian-950 transition-all mr-2"
+                          title="Editar Registro"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteRecord(reg)}
+                          className="p-2 bg-obsidian-800 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"
+                          title="Eliminar Registro"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
@@ -220,6 +279,59 @@ function InicioView() {
           </table>
         </div>
       </div>
+
+      {/* Modal de Edición (Solo para ROOT) */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-obsidian-900 rounded-2xl shadow-2xl border border-obsidian-800 w-full max-w-md p-8">
+            <h3 className="text-2xl font-light text-obsidian-50 tracking-wide uppercase mb-6">Editar <span className="font-bold text-gold-500">Registro</span></h3>
+            <p className="text-obsidian-400 text-sm mb-6 uppercase tracking-widest font-bold">{editingRecord.nombre_empleado}</p>
+            
+            <form onSubmit={handleSaveEdit} className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-obsidian-400 mb-2 uppercase tracking-widest">Nueva Fecha y Hora</label>
+                <input 
+                  type="datetime-local" 
+                  required
+                  className="w-full px-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 outline-none focus:ring-2 focus:ring-gold-500"
+                  value={editData.timestamp}
+                  onChange={e => setEditData({...editData, timestamp: e.target.value})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-obsidian-400 mb-2 uppercase tracking-widest">Tipo de Marcaje</label>
+                <select 
+                  className="w-full px-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 outline-none focus:ring-2 focus:ring-gold-500"
+                  value={editData.tipo}
+                  onChange={e => setEditData({...editData, tipo: e.target.value})}
+                >
+                  <option value="0">ENTRADA</option>
+                  <option value="1">SALIDA</option>
+                  <option value="2">INICIO COMIDA</option>
+                  <option value="3">FIN COMIDA</option>
+                </select>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowEditModal(false)} 
+                  className="flex-1 py-3 border border-obsidian-700 text-obsidian-400 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-obsidian-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 bg-gold-500 text-obsidian-950 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-gold-400 transition-colors"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -254,17 +366,25 @@ function MainLayout() {
     // Verificar permisos si el usuario no es ROOT o ADMIN
     const permisos = user.permisos ? JSON.parse(user.permisos) : null;
     
-    // Función para validar acceso
+    // Función para validar acceso modular
     const canAccess = (module) => {
-      if (user.rol === 'ROOT' || user.rol === 'ADMIN') return true;
-      if (!permisos) return false;
-      return permisos.includes(module);
+      if (user.rol === 'ROOT') return true;
+      if (module === 'inicio') return true;
+      
+      // Si el usuario tiene permisos específicos definidos, usarlos
+      const permisosArr = user.permisos ? JSON.parse(user.permisos) : [];
+      if (Array.isArray(permisosArr) && permisosArr.length > 0) {
+        return permisosArr.includes(module);
+      }
+
+      // De lo contrario, ADMIN y RRHH tienen acceso total por defecto
+      return user.rol === 'ADMIN' || user.rol === 'RRHH';
     };
 
     switch (view) {
-      case 'inicio': return <InicioView />;
+      case 'inicio': return <InicioView user={user} />;
       case 'empleados': 
-        return canAccess('empleados') ? <DirectorioView /> : <Navigate to="/" />;
+        return canAccess('empleados') ? <DirectorioView user={user} /> : <Navigate to="/" />;
       case 'reportes': 
         return canAccess('reportes') ? <ReportesView /> : <Navigate to="/" />;
       case 'areas': 
@@ -295,7 +415,7 @@ function MainLayout() {
         </div>
       </header>
       
-      <DashboardLayout currentView={view} setView={setView}>
+      <DashboardLayout currentView={view} setView={setView} user={user}>
         {renderView()}
       </DashboardLayout>
     </div>

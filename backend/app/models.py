@@ -88,7 +88,7 @@ class Registro(Base):
 # Modelo para Comandos ADMS (Sincronización Web -> Reloj)
 class Comando(Base):
     __tablename__ = "comandos"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     dispositivo_sn = Column(String, nullable=False, index=True)
     comando = Column(String, nullable=False) # ej. "DATA USER PIN=101\tName=Juan"
     ejecutado = Column(Boolean, default=False)

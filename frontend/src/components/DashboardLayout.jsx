@@ -29,15 +29,27 @@ const BottomNavItem = ({ icon: Icon, label, active, onClick }) => (
   </button>
 );
 
-export default function DashboardLayout({ children, currentView, setView }) {
+export default function DashboardLayout({ children, currentView, setView, user }) {
+  const canAccess = (moduleId) => {
+    if (user?.rol === 'ROOT') return true;
+    if (moduleId === 'inicio') return true;
+
+    const permisosArr = user?.permisos ? JSON.parse(user.permisos) : [];
+    if (Array.isArray(permisosArr) && permisosArr.length > 0) {
+      return permisosArr.includes(moduleId);
+    }
+
+    return user?.rol === 'ADMIN' || user?.rol === 'RRHH';
+  };
+
   const menuItems = [
     { id: 'inicio', label: 'Inicio', icon: Home },
     { id: 'empleados', label: 'Empleados', icon: Users },
-    { id: 'horarios', label: 'Horarios', icon: Clock }, // Nuevo módulo
+    { id: 'horarios', label: 'Horarios', icon: Clock },
     { id: 'areas', label: 'Áreas', icon: Map },
     { id: 'reportes', label: 'Reportes', icon: BarChart2 },
     { id: 'configuracion', label: 'Configuración', icon: Settings },
-  ];
+  ].filter(item => canAccess(item.id));
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] bg-obsidian-950 relative">

@@ -22,9 +22,19 @@ Este módulo es un **Agente Local** diseñado para interceptar las checadas biom
 
 ¡Déjala minimizada y listo!
 
+## Modo "Sigilo" (Segundo Plano Permanente)
+Si quieres que el puente corra en una computadora de Sistemas sin que nadie vea la ventana ni pueda cerrarla accidentalmente:
+
+1. En la carpeta `local_bridge`, busca el archivo `iniciar_oculto.vbs`.
+2. Haz doble clic en él. **No pasará nada visualmente**, pero el puente ya estará corriendo en el fondo.
+3. **Para que inicie siempre con Windows:**
+   - Presiona `Win + R`, escribe `shell:startup` y dale Enter.
+   - Crea un acceso directo al archivo `iniciar_oculto.vbs` dentro de esa carpeta.
+   - A partir de ahora, cada vez que se prenda la computadora, el puente arrancará solo y en silencio.
+
 ## Configuración del Reloj ZKTeco
 En el menú del reloj físico, ve a **Configuración de Red** -> **Configuración Servidor Cloud (ADMS)** y pon los siguientes datos:
-- **Dirección del Servidor:** La IP de tu computadora (por ejemplo, `192.168.1.50`).
+- **Dirección del Servidor:** La IP de esa computadora (ej. `192.168.1.50`).
 - **Puerto del Servidor:** `8080`
 
-Para saber tu IP local en Windows, abre una consola (`cmd`) y escribe `ipconfig`, busca la línea que dice `IPv4 Address`.
+Para saber la IP de la computadora de Sistemas, abre una consola (`cmd`) y escribe `ipconfig`.

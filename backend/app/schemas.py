@@ -112,7 +112,7 @@ class PasswordChange(BaseModel):
     new_password: str
 
 class ComandoOut(BaseModel):
-    id: uuid.UUID
+    id: int
     dispositivo_sn: str
     comando: str
     ejecutado: bool
