@@ -74,18 +74,19 @@ export default function ReportesView() {
   };
 
   const exportCSV = (data) => {
-    const headers = ['Empleado', 'ID Reloj', 'Fecha', 'Hora', 'Tipo', 'Area', 'Puesto', 'Dispositivo'];
+    const headers = ['Empleado', 'ID Reloj', 'Área', 'Fecha', 'Entrada', 'Salida a Comer', 'Regreso de Comer', 'Salida', 'Horas Totales'];
     const csvContent = [
       headers.join(','),
       ...data.map(row => [
         `"${row.empleado}"`,
         row.id_reloj,
-        row.fecha,
-        row.hora,
-        row.tipo,
         `"${row.area}"`,
-        `"${row.puesto}"`,
-        row.dispositivo
+        row.fecha,
+        row.entrada,
+        row.salida_comer,
+        row.regreso_comer,
+        row.salida,
+        row.horas_trabajadas
       ].join(','))
     ].join('\n');
 
@@ -118,18 +119,18 @@ export default function ReportesView() {
     const empName = selectedEmpleado ? empleados.find(e => e.id === selectedEmpleado)?.nombre_completo || "Desconocido" : "Todos los Empleados";
     doc.text(`Empleado: ${empName}`, 14, 40);
     
-    doc.text(`Total de Registros: ${data.length}`, 14, 45);
+    doc.text(`Total de Días Trabajados: ${data.length}`, 14, 45);
     doc.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 50);
 
-    const tableColumn = ["Empleado", "ID", "Fecha", "Hora", "Tipo", "Area", "Puesto"];
+    const tableColumn = ["Empleado", "Fecha", "Entrada", "Sal. Comida", "Reg. Comida", "Salida", "Horas Totales"];
     const tableRows = data.map(row => [
       row.empleado,
-      row.id_reloj,
       row.fecha,
-      row.hora,
-      row.tipo,
-      row.area,
-      row.puesto
+      row.entrada,
+      row.salida_comer,
+      row.regreso_comer,
+      row.salida,
+      row.horas_trabajadas
     ]);
 
     doc.autoTable({
@@ -139,7 +140,7 @@ export default function ReportesView() {
       theme: 'grid',
       headStyles: { fillColor: [30, 30, 30], textColor: [184, 134, 11] }, // Obsidian & Gold
       alternateRowStyles: { fillColor: [245, 245, 245] },
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       didDrawPage: function (dataInfo) {
         // Footer: Page numbers
         let str = "Página " + doc.internal.getNumberOfPages();

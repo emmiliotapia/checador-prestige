@@ -95,9 +95,10 @@ function InicioView({ user }) {
 
   const handleEditClick = (reg) => {
     setEditingRecord(reg);
-    // Format timestamp for datetime-local input
+    // Format timestamp for datetime-local input in local time
     const date = new Date(reg.timestamp_checada);
-    const formattedDate = date.toISOString().slice(0, 16);
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    const formattedDate = localDate.toISOString().slice(0, 19);
     setEditData({ timestamp: formattedDate, tipo: reg.tipo_registro });
     setShowEditModal(true);
   };
@@ -217,7 +218,7 @@ function InicioView({ user }) {
             <tbody className="divide-y divide-obsidian-800">
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
+                  <td colSpan={user.rol === 'ROOT' ? 5 : 4} className="px-6 py-12 text-center text-obsidian-500 uppercase tracking-widest text-sm">Cargando actividad...</td>
                 </tr>
               ) : sortedRecords.length > 0 ? (
                 sortedRecords.map((reg) => (
@@ -240,9 +241,13 @@ function InicioView({ user }) {
                       <span className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${
                         reg.tipo_registro === '0' 
                           ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : reg.tipo_registro === '1'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : reg.tipo_registro === '2'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                       }`}>
-                        {reg.tipo_registro === '0' ? 'Entrada' : 'Salida'}
+                        {reg.tipo_registro === '0' ? 'Entrada' : reg.tipo_registro === '1' ? 'Salida' : reg.tipo_registro === '2' ? 'Inicio Comida' : 'Fin Comida'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-obsidian-400 text-xs font-mono">
@@ -270,7 +275,7 @@ function InicioView({ user }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-obsidian-500 italic">
+                  <td colSpan={user.rol === 'ROOT' ? 5 : 4} className="px-6 py-12 text-center text-obsidian-500 italic">
                     No hay actividad reciente registrada.
                   </td>
                 </tr>
@@ -292,6 +297,7 @@ function InicioView({ user }) {
                 <label className="block text-xs font-bold text-obsidian-400 mb-2 uppercase tracking-widest">Nueva Fecha y Hora</label>
                 <input 
                   type="datetime-local" 
+                  step="1"
                   required
                   className="w-full px-4 py-3 bg-obsidian-950 border border-obsidian-700 rounded-lg text-gold-50 outline-none focus:ring-2 focus:ring-gold-500"
                   value={editData.timestamp}

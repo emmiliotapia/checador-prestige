@@ -553,47 +553,51 @@ def exportar_reporte_detallado(
 
     result = []
     for (emp_id, fecha), daily_regs in agrupados.items():
+        # Asegurar orden cronológico
+        daily_regs.sort(key=lambda r: r.timestamp_checada)
         count = len(daily_regs)
         
-        for i, reg in enumerate(daily_regs):
-            tipo = "Desconocido"
+        reg_entrada = daily_regs[0]
+        reg_salida = daily_regs[-1] if count > 1 else None
+        
+        hora_entrada = reg_entrada.timestamp_checada.strftime("%H:%M:%S")
+        hora_salida = reg_salida.timestamp_checada.strftime("%H:%M:%S") if reg_salida else ""
+        
+        hora_salida_comer = ""
+        hora_regreso_comer = ""
+        horas_trabajadas = ""
+        
+        if count >= 3:
+            hora_salida_comer = daily_regs[1].timestamp_checada.strftime("%H:%M:%S")
+        if count >= 4:
+            hora_regreso_comer = daily_regs[2].timestamp_checada.strftime("%H:%M:%S")
             
-            if count == 1:
-                tipo = "Entrada"
-            elif count == 2:
-                if i == 0:
-                    tipo = "Entrada"
-                else:
-                    # Diferencia en horas entre la 1ra y 2da checada
-                    diff = daily_regs[1].timestamp_checada - daily_regs[0].timestamp_checada
-                    if diff.total_seconds() >= 7.5 * 3600:
-                        tipo = "Salida"
-                    else:
-                        tipo = "Salida a Comer"
-            elif count == 3:
-                if i == 0: tipo = "Entrada"
-                elif i == 1: tipo = "Salida a Comer"
-                elif i == 2: tipo = "Regreso de Comer"
-            elif count >= 4:
-                if i == 0: tipo = "Entrada"
-                elif i == 1: tipo = "Salida a Comer"
-                elif i == 2: tipo = "Regreso de Comer"
-                elif i == 3: tipo = "Salida"
-                else: tipo = "Checada Adicional"
-                
-            result.append({
-                "empleado": reg.empleado.nombre_completo,
-                "id_reloj": reg.empleado.id_reloj,
-                "area": reg.empleado.area.nombre_area if reg.empleado.area else "N/A",
-                "puesto": reg.empleado.puesto or "N/A",
-                "fecha": reg.timestamp_checada.strftime("%Y-%m-%d"),
-                "hora": reg.timestamp_checada.strftime("%H:%M:%S"),
-                "tipo": tipo,
-                "dispositivo": reg.dispositivo_sn
-            })
+        if reg_salida:
+            total_seconds = (reg_salida.timestamp_checada - reg_entrada.timestamp_checada).total_seconds()
+            # Descontar comida si hay 4 checadas o más
+            if count >= 4:
+                comida_seconds = (daily_regs[2].timestamp_checada - daily_regs[1].timestamp_checada).total_seconds()
+                total_seconds = max(0, total_seconds - comida_seconds)
             
-    # Ordenar finalmente por fecha y hora cronológicamente
-    result.sort(key=lambda x: (x["fecha"], x["hora"]))
+            horas = int(total_seconds // 3600)
+            mins = int((total_seconds % 3600) // 60)
+            horas_trabajadas = f"{horas:02d}:{mins:02d}"
+
+        result.append({
+            "empleado": reg_entrada.empleado.nombre_completo,
+            "id_reloj": reg_entrada.empleado.id_reloj,
+            "area": reg_entrada.empleado.area.nombre_area if reg_entrada.empleado.area else "N/A",
+            "puesto": reg_entrada.empleado.puesto or "N/A",
+            "fecha": fecha.strftime("%Y-%m-%d"),
+            "entrada": hora_entrada,
+            "salida_comer": hora_salida_comer,
+            "regreso_comer": hora_regreso_comer,
+            "salida": hora_salida,
+            "horas_trabajadas": horas_trabajadas
+        })
+            
+    # Ordenar por fecha y nombre de empleado
+    result.sort(key=lambda x: (x["fecha"], x["empleado"]))
     
     return result
 
