@@ -50,5 +50,10 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Causa 2 (Protocolo de ID estricto):** La base de datos generaba IDs de tipo `UUID` (`c9ab3be3...`) para encolar los comandos, pero el firmware ADMS antiguo del reloj solo es capaz de leer números enteros (ej. `C:1:DATA...`). El reloj recibía el comando pero no lo entendía ni lo reportaba.
 - **Solución:** Se cambió la columna `id` de la tabla `comandos` a un `Integer` auto-incremental. Se limpió la sintaxis omitiendo campos vacíos. Se configuró `/iclock/devicecmd` para marcar como ejecutados los comandos defectuvosos y evitar un bucle de envíos. Adicionalmente, se forzó `CmdInterval=15` en el handshake de `/iclock/cdata` para asegurar que el reloj consulte pendientes frecuentemente.
 
+### 🔴 Error: Falta de Segundos al Modificar Checada Manualmente (Solo ROOT)
+- **Contexto:** El usuario ROOT puede modificar registros de asistencia, pero el input de tiempo de la interfaz web no permitía ingresar segundos, afectando la precisión del cálculo de incidencias.
+- **Causa:** El input HTML para la hora en la interfaz web no tenía especificado el atributo `step="1"`, por lo que el navegador ocultaba el selector de segundos y limitaba la precisión a horas/minutos.
+- **Solución:** Agregar `step="1"` a los inputs de tipo `datetime-local` o `time` para forzar la visualización y envío de segundos en el dashboard.
+
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
