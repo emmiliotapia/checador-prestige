@@ -128,10 +128,12 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
     return PlainTextResponse("OK\n")
 
 @app.get("/iclock/getrequest")
-async def get_request(sn: str, db: Session = Depends(get_db)):
+async def get_request(request: Request, db: Session = Depends(get_db)):
     """
     El dispositivo pregunta si hay comandos pendientes.
     """
+    sn = request.query_params.get("SN") or request.query_params.get("sn", "")
+    
     comandos = db.query(models.Comando).filter(
         (models.Comando.dispositivo_sn == sn) | (models.Comando.dispositivo_sn == "TODOS"),
         models.Comando.ejecutado == False

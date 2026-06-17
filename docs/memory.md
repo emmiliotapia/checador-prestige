@@ -60,5 +60,10 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Causa:** El sistema agrupaba estrictamente por la fecha calendario (`reg.timestamp_checada.date()`), provocando que la salida de madrugada cayera en un bloque distinto al de su entrada.
 - **Solución:** Se implementó una lógica de "Día Operativo" en `backend/app/main.py`. Si la hora de la checada es menor a las 06:00 AM, se le asigna operativamente a la fecha del día anterior (`fecha - 1 día`), cerrando correctamente los turnos nocturnos.
 
+### 🔴 Error: Reloj ZKTeco no descarga usuarios nuevos (Error 422 Unprocessable Entity)
+- **Contexto:** Al crear usuarios en el portal, los comandos se encolaban correctamente en la base de datos, pero el reloj checador nunca los sincronizaba ni descargaba.
+- **Causa:** El firmware del dispositivo ADMS envía las peticiones GET con los parámetros en mayúsculas: `?SN=XXX&INFO=YYY`. Sin embargo, el backend de FastAPI definía el parámetro estrictamente en minúsculas en su firma: `async def get_request(sn: str)`. Al no encontrar `sn` (minúscula), FastAPI rechazaba la petición de inmediato con un error "422 Unprocessable Entity", por lo que el reloj nunca recibía respuesta ni los comandos pendientes.
+- **Solución:** Se modificó la firma de la ruta `/iclock/getrequest` para usar el objeto `Request` genérico (`async def get_request(request: Request)`) y se leyó el parámetro con tolerancia a mayúsculas y minúsculas: `sn = request.query_params.get("SN") or request.query_params.get("sn")`. Esto evita el rechazo automático de FastAPI.
+
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
