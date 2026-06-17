@@ -74,6 +74,7 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
             "TransInterval=1\n"
             "CmdInterval=15\n"
             "TimeZone=-07:00\n"
+            "SyncTime=0\n"
             "Realtime=1\n"
         )
         return PlainTextResponse(response_text)
