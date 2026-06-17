@@ -65,5 +65,10 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Causa:** El firmware del dispositivo ADMS envía las peticiones GET con los parámetros en mayúsculas: `?SN=XXX&INFO=YYY`. Sin embargo, el backend de FastAPI definía el parámetro estrictamente en minúsculas en su firma: `async def get_request(sn: str)`. Al no encontrar `sn` (minúscula), FastAPI rechazaba la petición de inmediato con un error "422 Unprocessable Entity", por lo que el reloj nunca recibía respuesta ni los comandos pendientes.
 - **Solución:** Se modificó la firma de la ruta `/iclock/getrequest` para usar el objeto `Request` genérico (`async def get_request(request: Request)`) y se leyó el parámetro con tolerancia a mayúsculas y minúsculas: `sn = request.query_params.get("SN") or request.query_params.get("sn")`. Esto evita el rechazo automático de FastAPI.
 
+### 🔴 Error: Reloj ZKTeco registra checadas "en el futuro" (Fallo de Zona Horaria)
+- **Contexto:** Después de reparar la comunicación con el servidor, el dispositivo comenzó a registrar asistencias con fechas del día siguiente (ej. sumando ~8 horas a la hora local).
+- **Causa:** Al restablecerse la conexión, el reloj comenzó a leer la cabecera HTTP `Date` (que Nginx/FastAPI envían en tiempo UTC). Como los dispositivos ZKTeco vienen de fábrica configurados con la Zona Horaria de China (+08:00), el reloj tomaba la hora UTC y le sumaba 8 horas, alterando completamente los registros.
+- **Solución:** Se modificó la ruta `GET /iclock/cdata` (que dicta las opciones iniciales de ADMS) para que el servidor inyecte explícitamente el parámetro `TimeZone=-07:00` en la configuración del dispositivo. Esto fuerza al reloj a ajustar su offset de forma automática en cada conexión sin necesidad de configuración manual en el aparato.
+
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
