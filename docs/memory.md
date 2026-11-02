@@ -70,5 +70,20 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 - **Causa:** Al restablecerse la conexión, el reloj comenzó a leer la cabecera HTTP `Date` (que Nginx/FastAPI envían en tiempo UTC). Como los dispositivos ZKTeco vienen de fábrica configurados con la Zona Horaria de China (+08:00), el reloj tomaba la hora UTC y le sumaba 8 horas, alterando completamente los registros.
 - **Solución:** Inicialmente se intentó forzar `TimeZone=-07:00` vía ADMS, pero ciertos firmwares de ZKTeco lo ignoran y continúan aplicando su offset rígido (+08:00) sobre la cabecera HTTP `Date` (UTC) del servidor. La solución definitiva fue inyectar **`SyncTime=0`** en la ruta `GET /iclock/cdata` (opciones iniciales) para **deshabilitar permanentemente la sincronización de red** en el reloj. Esto "congela" el reloj a su hora local y evita que el servidor lo arrastre al futuro. Finalmente se requiere ajustar la hora manualmente en el dispositivo físico por última vez y restar 15 horas a los registros afectados en SQL (`UPDATE registros SET timestamp_checada = timestamp_checada - interval '15 hours' WHERE ...`).
 
+### 🔴 Error: Desfase de 1 hora en Reloj ZKTeco y Error 404 en `/iclock/rtdata` (Horario de Invierno)
+- **Contexto:** Al intentar ajustar la hora en dispositivos con firmware moderno (ej. SilkBio-100TC Ver 8.0.4.3), el reloj mantenía un desfase de 1 hora adelantada y descartaba los comandos `SET OPTIONS DateTime=...`.
+- **Causa 1 (Endpoint faltante):** Al recibir una orden de hora, el dispositivo consulta de inmediato en segundo plano `GET /iclock/rtdata?SN=...&type=time`. Al responder el servidor con 404 Not Found, el terminal cancela la sincronización.
+- **Causa 2 (Cambio de Horario UTC-07 vs UTC-08):** El servidor anunciaba en `/iclock/cdata` la zona `TimeZone=-07:00` (horario de verano). Al entrar en vigor el horario de invierno (UTC-08:00), el reloj calculaba 1 hora de adelanto.
+- **Solución:** 
+  1. Se implementó el endpoint `@app.get("/iclock/rtdata")` devolviendo `DateTime={unix_ts}&ServerTZ=-0800`.
+  2. Se actualizó el handshake inicial en `GET /iclock/cdata` con `TimeZone=-08:00`.
+  3. Se envió un comando `REBOOT` vía ADMS para que el dispositivo recargue su configuración de zona horaria y sincronice en el arranque.
+
+### 🔴 Error: Bloqueo de Menú por Administrador en SilkBio-100TC (Fallo de Clave Dinámica 8888)
+- **Contexto:** El usuario no podía ingresar al menú del reloj porque estaba protegido por un administrador anterior y el cálculo dinámico tradicional (`9999 - Hora` al cuadrado) era rechazado con *"Contraseña mal"*.
+- **Causa:** En firmwares modernos (Ver 8.0.4.3+), ZKTeco eliminó la vulnerabilidad del código dinámico `8888`, exigiendo exclusivamente la huella/rostro del administrador original o comandos firmados de gestión.
+- **Solución:** Inyectar un comando ADMS directo a la cola de comandos:
+  `DATA UPDATE USERINFO PIN=8888\tName=ADMIN\tPri=14\tPasswd=8888` (o para el usuario del administrador deseado ej. `1451`). Al consultar `/iclock/getrequest`, el dispositivo registra al usuario con privilegio de Super Administrador (`Pri=14`) y clave fija, permitiendo el ingreso inmediato sin depender de bypass físicos ni contraseñas calculadas.
+
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*

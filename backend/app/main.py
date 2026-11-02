@@ -73,7 +73,7 @@ async def receive_zkteco_data(request: Request, db: Session = Depends(get_db)):
             "TransTimes=00:00;14:00\n"
             "TransInterval=1\n"
             "CmdInterval=15\n"
-            "TimeZone=-07:00\n"
+            "TimeZone=-08:00\n"
             "SyncTime=0\n"
             "Realtime=1\n"
         )
@@ -160,12 +160,15 @@ async def device_cmd(request: Request, db: Session = Depends(get_db)):
     body_text = body.decode("utf-8")
     # Formato: ID=cmd_id&Return=0 (0 es éxito)
     lines = body_text.strip().split("\n")
+    print(f"[DEVICECMD DEBUG] Received: {body_text.strip()}")
     import urllib.parse
     for line in lines:
         parsed = urllib.parse.parse_qs(line.strip())
         if "ID" in parsed:
             try:
                 cmd_id = int(parsed["ID"][0])
+                ret_code = parsed.get("Return", ["?"])[0]
+                print(f"[DEVICECMD DEBUG] Command {cmd_id} Return code: {ret_code}")
                 comando = db.query(models.Comando).filter(models.Comando.id == cmd_id).first()
                 if comando:
                     comando.ejecutado = True
@@ -174,6 +177,17 @@ async def device_cmd(request: Request, db: Session = Depends(get_db)):
     
     db.commit()
     return PlainTextResponse("OK\n")
+
+@app.get("/iclock/rtdata")
+async def rt_data(request: Request):
+    """
+    Sincronización de hora en tiempo real solicitada por el reloj (type=time).
+    Enviamos la hora local (-08:00) o Unix timestamp correcto.
+    """
+    import time
+    # Timestamp local actual (UTC-8)
+    now_ts = int(time.time()) - (8 * 3600)
+    return PlainTextResponse(f"DateTime={now_ts},ServerTZ=-0800\n")
 
 # --- API ENDPOINTS (GESTION) ---
 
@@ -222,7 +236,7 @@ def create_empleado(
     # En un sistema real, buscaríamos los dispositivos del tenant
     nuevo_comando = models.Comando(
         dispositivo_sn="TODOS", # O un SN específico
-        comando=f"DATA UPDATE USERINFO PIN={db_empleado.id_reloj}\tName={db_empleado.nombre_completo}\tPri=0"
+        comando=f"DATA UPDATE USERINFO PIN={db_empleado.id_reloj}\tName={db_empleado.nombre_completo[:24]}\tPri=0"
     )
     db.add(nuevo_comando)
     db.commit()
@@ -651,7 +665,7 @@ def update_empleado(
     if "nombre_completo" in update_dict:
         cmd = models.Comando(
             dispositivo_sn="TODOS",
-            comando=f"DATA UPDATE USERINFO PIN={empleado.id_reloj}\tName={empleado.nombre_completo}\tPri=0"
+            comando=f"DATA UPDATE USERINFO PIN={empleado.id_reloj}\tName={empleado.nombre_completo[:24]}\tPri=0"
         )
         db.add(cmd)
         db.commit()
