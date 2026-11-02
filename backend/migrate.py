@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine, text
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:attendance_secret@attendance-db:5432/smartops_attendance")
+raw_url = os.getenv("DATABASE_URL", "postgresql://postgres:attendance_secret@attendance-db:5432/smartops_attendance")
+if raw_url.startswith("postgresql://"):
+    DATABASE_URL = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+else:
+    DATABASE_URL = raw_url
 
 engine = create_engine(DATABASE_URL)
 
