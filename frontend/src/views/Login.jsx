@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Lock, Mail } from 'lucide-react';
+import { LogIn, Lock, Mail, Sun, Moon, Sparkles, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-export default function Login() {
+export default function Login({ theme, toggleTheme }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,57 +30,84 @@ export default function Login() {
 
       const { access_token, usuario } = response.data;
       
-      // Save token and user info
       localStorage.setItem('token', access_token);
       localStorage.setItem('user', JSON.stringify(usuario));
 
-      // Redirect to dashboard
       navigate('/');
     } catch (err) {
       console.error('Login error', err);
-      setError('Credenciales incorrectas o problema de red.');
+      setError('Credenciales incorrectas o problema de conexión con el servidor.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-obsidian-950 flex flex-col justify-center items-center relative overflow-hidden">
-      {/* Background Decorators */}
-      <div className="absolute top-[-20%] left-[-10%] w-96 h-96 bg-gold-600 rounded-full mix-blend-screen filter blur-[128px] opacity-20"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-96 h-96 bg-gold-400 rounded-full mix-blend-screen filter blur-[128px] opacity-10"></div>
-      
-      <div className="z-10 w-full max-w-md px-6">
-        {/* Logo or Brand */}
-        <div className="text-center mb-10 flex flex-col items-center">
-          <img src="/logo.png" alt="Casino Prestige Logo" className="h-24 w-auto mb-4 drop-shadow-2xl" />
-          <h1 className="text-4xl font-light text-obsidian-50 tracking-widest uppercase mt-2">
-            Casino <span className="font-bold text-gold-500">Prestige</span>
+    <div className="min-h-screen bg-obsidian-950 text-obsidian-100 flex flex-col justify-center items-center px-4 relative transition-colors duration-200">
+      {/* Top Right Theme Switcher */}
+      {toggleTheme && (
+        <div className="fixed top-6 right-6 z-20">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-obsidian-900 border border-obsidian-800 text-obsidian-200 hover:border-gold-500/40 shadow-sm transition-all text-xs font-semibold"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} className="text-gold-400" />
+                <span>Modo Claro</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="text-gold-500" />
+                <span>Modo Oscuro</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      <div className="w-full max-w-[420px]">
+        {/* Brand Identity */}
+        <div className="text-center mb-8 flex flex-col items-center">
+          <div className="w-16 h-16 bg-obsidian-900 border border-obsidian-800 rounded-2xl flex items-center justify-center p-3 mb-4 shadow-sm">
+            <img src="/logo.png" alt="Casino Prestige Logo" className="w-full h-full object-contain" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-obsidian-50 tracking-tight">
+            Casino <span className="text-gold-500">Prestige</span>
           </h1>
-          <p className="text-obsidian-400 mt-2 text-sm uppercase tracking-[0.2em]">SmartOps Time</p>
+          <p className="text-obsidian-400 text-xs font-medium mt-1 flex items-center gap-1.5">
+            <Sparkles size={13} className="text-gold-500" />
+            <span>Plataforma de Control de Asistencia y Nómina</span>
+          </p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-obsidian-900/80 backdrop-blur-xl border border-obsidian-800 p-8 rounded-2xl shadow-2xl">
-          <form onSubmit={handleLogin} className="space-y-6">
-            
+        {/* Modern Card */}
+        <div className="bg-obsidian-900 border border-obsidian-800 p-8 rounded-2xl shadow-lg">
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-obsidian-50">Iniciar Sesión</h2>
+            <p className="text-xs text-obsidian-400 mt-0.5">Ingresa tus credenciales administrativas para continuar</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="p-3 bg-red-900/50 border border-red-500/50 text-red-200 text-sm rounded-lg text-center">
+              <div className="p-3.5 bg-red-500/10 border border-red-500/25 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl text-center">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-obsidian-300 text-sm font-medium mb-2 uppercase tracking-wider">Usuario o Correo</label>
+              <label className="block text-obsidian-300 text-xs font-semibold mb-2">
+                Usuario o Correo Electrónico
+              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-obsidian-500" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Mail className="h-4 w-4 text-obsidian-400" />
                 </div>
                 <input
                   type="text"
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-obsidian-700 rounded-lg bg-obsidian-950 text-obsidian-50 placeholder-obsidian-600 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-all"
-                  placeholder="root"
+                  className="block w-full pl-10 pr-4 py-3 border border-obsidian-800 rounded-xl bg-obsidian-950 text-obsidian-50 text-sm placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-gold-500 transition-all"
+                  placeholder="ejemplo@casinoprestige.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -88,15 +115,17 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-obsidian-300 text-sm font-medium mb-2 uppercase tracking-wider">Contraseña</label>
+              <label className="block text-obsidian-300 text-xs font-semibold mb-2">
+                Contraseña
+              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-obsidian-500" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Lock className="h-4 w-4 text-obsidian-400" />
                 </div>
                 <input
                   type="password"
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-obsidian-700 rounded-lg bg-obsidian-950 text-obsidian-50 placeholder-obsidian-600 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-all"
+                  className="block w-full pl-10 pr-4 py-3 border border-obsidian-800 rounded-xl bg-obsidian-950 text-obsidian-50 text-sm placeholder-obsidian-500 focus:outline-none focus:ring-2 focus:ring-gold-500 transition-all"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -107,28 +136,26 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-obsidian-950 bg-gold-500 hover:bg-gold-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold-600 focus:ring-offset-obsidian-900 transition-colors uppercase tracking-widest disabled:opacity-50"
+              className="w-full mt-2 flex justify-center items-center py-3.5 px-4 rounded-xl shadow-md shadow-gold-500/20 text-sm font-bold text-white dark:text-obsidian-950 bg-gold-500 hover:bg-gold-600 dark:hover:bg-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-500 transition-all disabled:opacity-50"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-obsidian-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Ingresando...
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Verificando acceso...</span>
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  <LogIn className="w-5 h-5" />
-                  Acceder al Sistema
+                  <LogIn className="w-4 h-4" />
+                  <span>Entrar al Panel</span>
                 </span>
               )}
             </button>
           </form>
         </div>
         
-        <div className="text-center mt-8 text-obsidian-500 text-xs tracking-wider">
-          &copy; {new Date().getFullYear()} SmartOpsia
+        <div className="flex items-center justify-center space-x-2 mt-8 text-obsidian-400 text-xs font-medium">
+          <CheckCircle2 size={14} className="text-emerald-500" />
+          <span>Conectado con Servidor Biométrico ADMS · {new Date().getFullYear()}</span>
         </div>
       </div>
     </div>

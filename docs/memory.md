@@ -87,3 +87,12 @@ Este documento registra los errores técnicos encontrados durante el desarrollo 
 
 ---
 *Nota: Este archivo debe ser actualizado por la IA ante cada error crítico resuelto.*
+
+### 🔴 Error: Fallo en Descarga de Reportes PDF en Producción (Vite / Rollup)
+- **Contexto:** Al hacer clic en "Descargar PDF" en la vista de Reportes, no se generaba ni descargaba el archivo.
+- **Causa:** En bundles ESM con Vite, jspdf-autotable opera como plugin que extiende el prototipo de jsPDF. Importarlo como función directa e invocarlo utoTable(doc, ...) fallaba con excepción silenciosa (`autoTable is not a function`).
+- **Solución:** Importar el plugin vía `import 'jspdf-autotable';` e invocar el método directamente sobre la instancia: `doc.autoTable(...)`. Además, sanitizar las celdas contra valores nulos o indefinidos.
+
+### 🔴 Error: Manejo y Visualización de Bajas en Directorio Operativo (RRHH)
+- **Contexto:** RRHH requería no ver a los colaboradores dados de baja en la vista principal operativa para evitar confusión en conteos y listados diarios.
+- **Solución:** Se implementó una arquitectura de pestañas segmentadas en `DirectorioView.jsx` separando **Personal Activo** de **Archivo de Bajas**, con flujo de reingreso inmediato (`Reingreso`) y borrado físico permanente restringido exclusivamente a `ROOT`. Asimismo, se filtraron empleados inactivos en catálogos y selectores de Turnos, Departamentos y Reportes.

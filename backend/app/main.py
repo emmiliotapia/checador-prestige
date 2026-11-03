@@ -296,9 +296,9 @@ def update_area(
         if exists:
             raise HTTPException(status_code=400, detail="Ya existe otra área con ese nombre")
         db_area.nombre_area = nombre_norm
-    if area_update.correo_responsable:
+    if "correo_responsable" in area_update.model_fields_set:
         db_area.correo_responsable = area_update.correo_responsable
-    if area_update.encargado_id:
+    if "encargado_id" in area_update.model_fields_set:
         db_area.encargado_id = area_update.encargado_id
         
     db.commit()
@@ -340,10 +340,48 @@ def create_horario(
     if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
         raise HTTPException(status_code=403, detail="No autorizado")
     db_horario = models.Horario(**horario.dict())
+    db_horario.nombre = normalize_string(db_horario.nombre)
     db.add(db_horario)
     db.commit()
     db.refresh(db_horario)
     return db_horario
+
+@app.put("/api/horarios/{horario_id}", response_model=schemas.HorarioOut)
+def update_horario(
+    horario_id: uuid.UUID,
+    horario_update: schemas.HorarioUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db_horario = db.query(models.Horario).filter(models.Horario.id == horario_id).first()
+    if not db_horario:
+        raise HTTPException(status_code=404, detail="Horario no encontrado")
+    update_dict = horario_update.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        if key == "nombre" and value:
+            value = normalize_string(value)
+        setattr(db_horario, key, value)
+    db.commit()
+    db.refresh(db_horario)
+    return db_horario
+
+@app.delete("/api/horarios/{horario_id}")
+def delete_horario(
+    horario_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db_horario = db.query(models.Horario).filter(models.Horario.id == horario_id).first()
+    if not db_horario:
+        raise HTTPException(status_code=404, detail="Horario no encontrado")
+    db.query(models.Empleado).filter(models.Empleado.horario_id == horario_id).update({"horario_id": None})
+    db.delete(db_horario)
+    db.commit()
+    return {"message": "Horario eliminado"}
 
 @app.post("/api/usuarios", response_model=schemas.UsuarioOut)
 def create_user(
@@ -364,7 +402,8 @@ def create_user(
         email=user_in.email,
         hashed_password=auth.get_password_hash(user_in.password),
         rol=user_in.rol,
-        area_id=user_in.area_id
+        area_id=user_in.area_id,
+        permisos=user_in.permisos
     )
     db.add(db_user)
     db.commit()
@@ -379,7 +418,10 @@ def list_users(
 ):
     if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
         raise HTTPException(status_code=403, detail="No autorizado")
-    return db.query(models.Usuario).filter(models.Usuario.tenant_id == tenant_id).all()
+    return db.query(models.Usuario).filter(
+        models.Usuario.tenant_id == tenant_id,
+        models.Usuario.rol != "ROOT"
+    ).all()
 
 @app.post("/api/dispositivos/sync")
 def force_sync(sn: str, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
@@ -396,6 +438,62 @@ def force_sync(sn: str, db: Session = Depends(get_db), current_user: models.Usua
     db.add(cmd2)
     db.commit()
     return {"message": f"Sincronización encolada para el dispositivo {sn}"}
+
+def calculate_zk_timestamp(dt: datetime) -> int:
+    """
+    Calcula el entero de segundos en época propietaria de ZKTeco:
+    ((Year - 2000) * 12 * 31 + ((Month - 1) * 31) + Day - 1) * 86400 + (Hour * 3600) + (Minute * 60) + Second
+    """
+    days = ((dt.year - 2000) * 12 * 31) + ((dt.month - 1) * 31) + (dt.day - 1)
+    seconds = (dt.hour * 3600) + (dt.minute * 60) + dt.second
+    return (days * 86400) + seconds
+
+@app.post("/api/dispositivos/sync-time")
+def sync_device_time(
+    payload: schemas.SyncTimeRequest,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    """
+    Sincroniza la fecha y hora del reloj checador ZKTeco encolando comandos ADMS.
+    """
+    if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
+        raise HTTPException(status_code=403, detail="No autorizado para sincronizar la hora del reloj")
+
+    if payload.custom_datetime:
+        try:
+            target_dt = datetime.fromisoformat(payload.custom_datetime)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de fecha/hora inválido. Usa YYYY-MM-DDTHH:MM:SS")
+    else:
+        # Hora UTC ajustada al huso horario indicado (por defecto UTC-8 Tijuana)
+        target_dt = datetime.utcnow() + timedelta(hours=payload.tz_offset_hours)
+
+    zk_ts = calculate_zk_timestamp(target_dt)
+    tz_sign = "+" if payload.tz_offset_hours >= 0 else "-"
+    tz_str = f"{tz_sign}{abs(payload.tz_offset_hours):02d}:00"
+
+    # Encolar comando SET OPTIONS con el timestamp de ZKTeco y zona horaria
+    cmd_time = models.Comando(
+        dispositivo_sn=payload.sn,
+        comando=f"SET OPTIONS DateTime={zk_ts},TimeZone={tz_str}"
+    )
+    db.add(cmd_time)
+
+    # Si se solicita reinicio suave para forzar el handshake /iclock/cdata y /iclock/rtdata
+    if payload.reboot:
+        cmd_reboot = models.Comando(
+            dispositivo_sn=payload.sn,
+            comando="REBOOT"
+        )
+        db.add(cmd_reboot)
+
+    db.commit()
+    return {
+        "message": f"Sincronización de hora ({target_dt.strftime('%Y-%m-%d %H:%M:%S')}) enviada al reloj.",
+        "target_datetime": target_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "zk_timestamp": zk_ts
+    }
 
 @app.post("/api/auth/login", response_model=schemas.Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -747,9 +845,9 @@ def update_usuario(
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     """
-    Permite actualizar permisos y roles de usuarios (ROOT o ADMIN).
+    Permite actualizar permisos y roles de usuarios (ROOT, ADMIN o RRHH).
     """
-    if current_user.rol not in ["ROOT", "ADMIN"]:
+    if current_user.rol not in ["ROOT", "ADMIN", "RRHH"]:
         raise HTTPException(status_code=403, detail="Permisos insuficientes")
         
     usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
@@ -757,14 +855,38 @@ def update_usuario(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     update_data = data.model_dump(exclude_unset=True)
-    if "password" in update_data and update_data["password"]:
-        # Solo ROOT o el propio usuario pueden cambiar la contraseña
-        if current_user.rol != "ROOT" and str(current_user.id) != str(usuario_id):
-             raise HTTPException(status_code=403, detail="Solo ROOT puede resetear claves ajenas")
-        usuario.hashed_password = auth.get_password_hash(update_data.pop("password"))
+    if "password" in update_data:
+        pwd = update_data.pop("password")
+        if pwd:
+            # Solo ROOT o el propio usuario pueden cambiar la contraseña
+            if current_user.rol != "ROOT" and str(current_user.id) != str(usuario_id):
+                raise HTTPException(status_code=403, detail="Solo ROOT puede resetear claves ajenas")
+            usuario.hashed_password = auth.get_password_hash(pwd)
+
+    if "permisos" in update_data and current_user.rol != "ROOT":
+        update_data.pop("permisos")
 
     for key, value in update_data.items():
         setattr(usuario, key, value)
 
     db.commit()
     return {"message": "Usuario actualizado"}
+
+@app.delete("/api/usuarios/{usuario_id}")
+def delete_usuario(
+    usuario_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.rol not in ["ROOT", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Solo ROOT o ADMIN pueden eliminar usuarios")
+    if str(current_user.id) == str(usuario_id):
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propio usuario activo")
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if usuario.rol == "ROOT":
+        raise HTTPException(status_code=403, detail="El usuario ROOT no puede ser eliminado")
+    db.delete(usuario)
+    db.commit()
+    return {"message": "Usuario eliminado"}

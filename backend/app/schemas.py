@@ -33,6 +33,14 @@ class HorarioBase(BaseModel):
 class HorarioCreate(HorarioBase):
     pass
 
+class HorarioUpdate(BaseModel):
+    nombre: Optional[str] = None
+    hora_entrada: Optional[str] = None
+    hora_salida: Optional[str] = None
+    tolerancia_entrada: Optional[int] = None
+    inicio_comida: Optional[str] = None
+    fin_comida: Optional[str] = None
+
 class HorarioOut(HorarioBase):
     id: uuid.UUID
     model_config = ConfigDict(from_attributes=True)
@@ -50,6 +58,7 @@ class EmpleadoCreate(EmpleadoBase):
 
 class EmpleadoUpdate(BaseModel):
     nombre_completo: Optional[str] = None
+    id_reloj: Optional[str] = None
     area_id: Optional[uuid.UUID] = None
     horario_id: Optional[uuid.UUID] = None
     puesto: Optional[str] = None
@@ -90,6 +99,7 @@ class UsuarioBase(BaseModel):
 
 class UsuarioCreate(UsuarioBase):
     password: str
+    permisos: Optional[str] = None # JSON string
 
 class UsuarioOut(UsuarioBase):
     id: uuid.UUID
@@ -118,3 +128,10 @@ class ComandoOut(BaseModel):
     ejecutado: bool
     fecha_creacion: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class SyncTimeRequest(BaseModel):
+    sn: str = "TODOS"
+    custom_datetime: Optional[str] = None # Formato YYYY-MM-DDTHH:MM:SS
+    tz_offset_hours: int = -8
+    reboot: bool = False
+

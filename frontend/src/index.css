@@ -3,7 +3,81 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply antialiased text-slate-900 bg-slate-50;
+  :root {
+    /* MODO CLARO: Pearl, Warm Alabaster & Champagne Gold */
+    --obs-950: 248 247 244; /* Fondo principal cálido luminoso (#F8F7F4) */
+    --obs-900: 255 255 255; /* Tarjetas y superficies elevadas (#FFFFFF) */
+    --obs-800: 228 226 220; /* Bordes sutiles y divisores (#E4E2DC) */
+    --obs-700: 210 207 198; /* Bordes de inputs activos (#D2CFC6) */
+    --obs-600: 156 152 142; /* Placeholders (#9C988E) */
+    --obs-500: 115 111 102; /* Texto terciario / iconos inactivos (#736F66) */
+    --obs-400: 87 83 75;    /* Texto secundario / etiquetas (#57534B) */
+    --obs-300: 64 61 55;    /* Texto medio (#403D37) */
+    --obs-200: 41 39 35;    /* Texto fuerte (#292723) */
+    --obs-100: 24 23 20;    /* Títulos principales (#181714) */
+    --obs-50:  15 14 12;    /* Contraste máximo (#0F0E0C) */
+
+    --gold-50:  24 23 20;   /* Texto en inputs claros */
+    --gold-100: 180 130 25;
+    --gold-200: 165 118 20;
+    --gold-300: 150 105 15;
+    --gold-400: 161 110 12; /* Dorado legible sobre blanco */
+    --gold-500: 196 142 28; /* Botón primario Champagne Gold (#C48E1C) */
+    --gold-600: 170 120 20;
+    --gold-700: 140 98 16;
+    --gold-800: 230 212 170;
+    --gold-900: 245 236 214;
+    --gold-950: 252 248 238;
+
+    color-scheme: light;
   }
+
+  .dark {
+    /* MODO OSCURO: Deep Carbon, Velvet Onyx & Imperial Gold */
+    --obs-950: 11 12 15;    /* Lienzo profundo (#0B0C0F) */
+    --obs-900: 18 20 25;    /* Superficie de tarjetas (#121419) */
+    --obs-800: 32 35 44;    /* Bordes elegantes (#20232C) */
+    --obs-700: 46 50 62;    /* Bordes inputs (#2E323E) */
+    --obs-600: 82 88 102;   /* Placeholders */
+    --obs-500: 115 122 138; /* Texto terciario */
+    --obs-400: 148 155 171; /* Etiquetas y subtítulos */
+    --obs-300: 184 190 204; /* Texto secundario claro */
+    --obs-200: 216 220 230; /* Texto lectura */
+    --obs-100: 238 240 246; /* Títulos claros */
+    --obs-50:  250 251 254; /* Blanco puro suave */
+
+    --gold-50:  252 249 240;
+    --gold-100: 248 238 205;
+    --gold-200: 242 222 155;
+    --gold-300: 236 202 100;
+    --gold-400: 229 184 59;  /* Dorado luminoso sobre oscuro */
+    --gold-500: 212 165 38;  /* Botón primario Imperial Gold (#D4A526) */
+    --gold-600: 184 138 24;
+    --gold-700: 148 108 18;
+    --gold-800: 105 76 14;
+    --gold-900: 68 48 10;
+    --gold-950: 38 27 6;
+
+    color-scheme: dark;
+  }
+
+  body {
+    @apply font-sans antialiased bg-obsidian-950 text-obsidian-100 transition-colors duration-200 selection:bg-gold-500/20 selection:text-gold-400;
+  }
+}
+
+/* Scrollbar sutil y moderno */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--obs-700));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--gold-500));
 }

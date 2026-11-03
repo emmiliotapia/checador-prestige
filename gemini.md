@@ -19,7 +19,7 @@ Dependiendo de la tarea que el humano (Emilio/Aldo) te pida, revisa los siguient
 | Si la tarea es sobre... | Revisa este archivo primero |
 | :--- | :--- |
 | **Configuración de Dominio, SSL, Cloudflare o Nginx** | `docs/vps.md` (Contiene las reglas de Proxy Hosts y puertos exactos). |
-| **Diseño, Colores, UI/UX o Frontend** | `frontend/tailwind.config.js` (La marca usa colores "Gold & Obsidian". **Prohibido** usar colores por defecto de Tailwind). |
+| **Diseño, Colores, UI/UX o Frontend** | Activar la skill local `.gemini/skills/human-ui-design/SKILL.md` y revisar `frontend/tailwind.config.js` (La marca usa colores "Gold & Obsidian". **Prohibido** usar colores por defecto de Tailwind). |
 | **Errores Conocidos y Soluciones (Memory)** | `docs/memory.md` (Historial de errores para evitar regresiones). |
 | **Conexión Biométrica (ADMS) o Parseo de Checadas** | `backend/app/main.py` (Ruta `/iclock/cdata`). |
 | **Base de Datos, Migraciones o Usuarios** | `backend/app/models.py` y `backend/seed.py` |
@@ -66,6 +66,14 @@ Para evitar romper el sistema de nuevo, ten en cuenta estos antecedentes histór
     - El `id_reloj` de un empleado debe ser único por Casino (Tenant).
     - El nombre de un área debe ser único por Casino.
 3. **Borrado Físico (ROOT):** Solo el usuario `ROOT` tiene permiso para eliminar permanentemente empleados y registros. El borrado de un empleado elimina en cascada todos sus registros de asistencia para limpiar duplicados históricos.
+
+## 🧩 6. Arquitectura de Reglas y Skills (Global vs. Local) y Protocolo de Versionamiento
+
+1. **Separación Global vs. Local (Progressive Disclosure):**
+   - **Reglas Base y Arquitectura (`GEMINI.md` / Global):** Las directrices de arquitectura multi-tenant, estabilidad del webhook ADMS, integridad de base de datos y reglas de despliegue operan de forma permanente en la configuración principal.
+   - **Skills Especializadas (`.gemini/skills/`):** Los requerimientos de dominio específico o diseño (como `human-ui-design` en `.gemini/skills/human-ui-design/SKILL.md`, vinculada mediante `.agents/skills.json`) se mantienen aislados y se cargan **únicamente bajo demanda** cuando se trabaja en la interfaz de usuario, optimizando la ventana de contexto.
+2. **Protocolo Estricto de Versionamiento y Seguridad:**
+   - El webhook ADMS (`/iclock/cdata`, `/iclock/getrequest`, `/iclock/devicecmd`, `/iclock/rtdata`) es la pieza más crítica del sistema. Cualquier modificación importante en código, esquemas de base de datos o flujos de UI debe manejarse con control estricto de versiones (verificación previa con `git status`/`git diff`, respaldos locales y commits atómicos) para evitar cualquier regresión en la recepción de checadas.
 
 ---
 *Nota para la IA: Actúa siempre como un desarrollador Senior. Eres "Dios" en este repositorio, pero respeta estrictamente estas reglas.*
